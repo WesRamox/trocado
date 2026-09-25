@@ -51,16 +51,18 @@ model Card {
 }
 
 model Transaction {
-  id            Int             @id @default(autoincrement())
-  userId        Int             @map("user_id")
-  cardId        Int?            @map("card_id")
-  categoryId    Int?            @map("category_id")
-  recurrenceId  Int?            @map("recurrence_id")
-  name          String
-  description   String?
-  amountInCents Int             @map("amount_in_cents")
-  type          TransactionType
-  date          DateTime        @db.Date
+  id             Int             @id @default(autoincrement())
+  userId         Int             @map("user_id")
+  cardId         Int?            @map("card_id")
+  categoryId     Int?            @map("category_id")
+  recurrenceId   Int?            @map("recurrence_id")
+  name           String
+  description    String?
+  amountInCents  Int             @map("amount_in_cents")
+  type           TransactionType
+  date           DateTime        @db.Date
+  // Vencimento da fatura em que o lançamento entra (só cartão de crédito)
+  invoiceDueDate DateTime?       @map("invoice_due_date") @db.Date
 
   // Parcelamento: todas as parcelas de uma compra compartilham o mesmo installmentGroupId
   installmentNumber  Int?    @map("installment_number")
@@ -76,7 +78,7 @@ model Transaction {
   recurrence Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
-  @@index([cardId])
+  @@index([cardId, invoiceDueDate])
   @@index([categoryId])
   @@index([recurrenceId])
   @@index([installmentGroupId])

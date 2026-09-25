@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
-import { Prisma } from '../generated/prisma/client.js';
+import { isUniqueViolation } from '../common/prisma-errors.js';
 import { UsersService, type PublicUser } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -28,7 +28,7 @@ export class AuthService {
     try {
       return await this.usersService.create({ name, email, password: hashedPassword });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('Email já cadastrado');
       }
       throw error;
