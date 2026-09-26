@@ -1,8 +1,13 @@
+import { ApiError } from "./call-backend";
+
 // Leitura de campos de formulário para montar o corpo das requisições
 
-// Valor em reais vindo do CurrencyInput
-export const AMOUNT_REQUIRED = { ok: false, message: "Informe um valor maior que zero." } as const;
-export const hasAmount = (form: FormData) => Number(text(form, "amount")) > 0;
+// Valor em reais vindo do CurrencyInput; sem valor, a requisição nem é feita
+export function requireAmount(form: FormData): number {
+  const amount = Number(text(form, "amount"));
+  if (!(amount > 0)) throw new ApiError(400, "Informe um valor maior que zero.");
+  return amount;
+}
 
 export const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 

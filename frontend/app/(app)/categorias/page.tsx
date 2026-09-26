@@ -5,7 +5,7 @@ import { CategoryDialog } from "@/components/categories/category-dialog";
 import { CategoryDot } from "@/components/category-dot";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { callBackend } from "@/lib/call-backend";
 import type { Category, TransactionType } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Categorias" };
@@ -16,7 +16,7 @@ const GROUPS: { type: TransactionType; title: string; empty: string }[] = [
 ];
 
 export default async function CategoriesPage() {
-  const categories = await api<Category[]>("/categories");
+  const categories = await callBackend<Category[]>("/categories");
 
   return (
     <>

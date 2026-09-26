@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createRecurrence, updateRecurrence } from "@/app/(app)/recorrencias/actions";
 import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
 import { CardSelect, CategorySelect, TypeToggle } from "@/components/form-controls";
@@ -17,10 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { callBackend } from "@/lib/call-backend";
+import { optionalId, optionalText, requireAmount, text } from "@/lib/form-data";
 import { today } from "@/lib/format";
 import { describeSchedule, FREQUENCY_OPTIONS } from "@/lib/recurrence";
 import type { Card, Category, Recurrence, RecurrenceFrequency, TransactionType } from "@/lib/types";
-import { useFormAction } from "@/lib/use-form-action";
+import { useFormRequest } from "@/lib/use-request";
 
 interface Props {
   cards: Card[];
@@ -62,14 +63,45 @@ export function RecurrenceDialog({ cards, categories, recurrence, trigger, open,
   );
 }
 
+// Campos que podem mudar depois de criada
+function editableBody(form: FormData) {
+  return {
+    name: text(form, "name"),
+    amount: requireAmount(form),
+    description: optionalText(form, "description"),
+    endDate: optionalText(form, "endDate"),
+    cardId: optionalId(form, "cardId"),
+    categoryId: optionalId(form, "categoryId"),
+  };
+}
+
 function RecurrenceForm({
   cards,
   categories,
   recurrence,
   onDone,
 }: Omit<Props, "trigger" | "open" | "onOpenChange"> & { onDone: () => void }) {
-  const action = recurrence ? updateRecurrence.bind(null, recurrence.id) : createRecurrence;
-  const { error, onSubmit, pending } = useFormAction(action, onDone);
+  const { error, onSubmit, pending } = useFormRequest(
+    async (form) => {
+      const body = editableBody(form);
+      if (recurrence) {
+        await callBackend(`/recurrences/${recurrence.id}`, { method: "PATCH", body });
+        return "Recorrência atualizada";
+      }
+      await callBackend("/recurrences", {
+        method: "POST",
+        body: {
+          ...body,
+          type: text(form, "type"),
+          frequency: text(form, "frequency"),
+          interval: Number(text(form, "interval") || 1),
+          startDate: text(form, "startDate"),
+        },
+      });
+      return "Recorrência criada";
+    },
+    { onSuccess: onDone },
+  );
 
   const [type, setType] = useState<TransactionType>(recurrence?.type ?? "OUTFLOW");
   const [cardId, setCardId] = useState(recurrence?.cardId ? String(recurrence.cardId) : "none");

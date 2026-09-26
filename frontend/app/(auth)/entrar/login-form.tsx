@@ -1,13 +1,28 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Field, FormError } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useFormAction } from "@/lib/use-form-action";
-import { login } from "../actions";
+import { callBackend } from "@/lib/call-backend";
+import { text } from "@/lib/form-data";
+import { useFormRequest } from "@/lib/use-request";
 
 export function LoginForm() {
-  const { error, onSubmit, pending } = useFormAction(login);
+  const router = useRouter();
+  const { error, onSubmit, pending } = useFormRequest(
+    // /auth/login é uma rota do Next: guarda o token no cookie httpOnly
+    async (form) => {
+      await callBackend("/auth/login", {
+        method: "POST",
+        body: { email: text(form, "email"), password: text(form, "password") },
+      });
+    },
+    {
+      onSuccess: () => router.replace("/"),
+      refresh: false,
+    },
+  );
 
   return (
     <form onSubmit={onSubmit} className="mt-8 grid gap-4">

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { callBackend } from "@/lib/call-backend";
 import { formatMoney, monthName, parseMonth } from "@/lib/format";
 import type { Card, Category, Transaction, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,11 +27,12 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/lan
   const month = parseMonth(params.mes);
   const filter = typeof params.tipo === "string" && params.tipo in TYPE_BY_FILTER ? params.tipo : undefined;
 
-  const query = new URLSearchParams({ month, ...(filter && { type: TYPE_BY_FILTER[filter] }) });
   const [transactions, cards, categories] = await Promise.all([
-    api<Transaction[]>(`/transactions?${query}`),
-    api<Card[]>("/cards"),
-    api<Category[]>("/categories"),
+    callBackend<Transaction[]>("/transactions", {
+      query: { month, type: filter && TYPE_BY_FILTER[filter] },
+    }),
+    callBackend<Card[]>("/cards"),
+    callBackend<Category[]>("/categories"),
   ]);
 
   const total = transactions.reduce(

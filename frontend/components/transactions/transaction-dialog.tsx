@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createTransaction, updateTransaction } from "@/app/(app)/lancamentos/actions";
 import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
 import { CardSelect, CategorySelect, TypeToggle } from "@/components/form-controls";
@@ -16,9 +15,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { callBackend } from "@/lib/call-backend";
+import { optionalId, optionalText, requireAmount, text } from "@/lib/form-data";
 import { today } from "@/lib/format";
 import type { Card, Category, Transaction, TransactionType } from "@/lib/types";
-import { useFormAction } from "@/lib/use-form-action";
+import { useFormRequest } from "@/lib/use-request";
 
 interface Props {
   cards: Card[];
@@ -61,14 +62,40 @@ export function TransactionDialog({ cards, categories, transaction, trigger, ope
   );
 }
 
+function transactionBody(form: FormData) {
+  return {
+    type: text(form, "type"),
+    name: text(form, "name"),
+    amount: requireAmount(form),
+    date: text(form, "date"),
+    description: optionalText(form, "description"),
+    cardId: optionalId(form, "cardId"),
+    categoryId: optionalId(form, "categoryId"),
+  };
+}
+
 function TransactionForm({
   cards,
   categories,
   transaction,
   onDone,
 }: Omit<Props, "trigger" | "open" | "onOpenChange"> & { onDone: () => void }) {
-  const action = transaction ? updateTransaction.bind(null, transaction.id) : createTransaction;
-  const { error, onSubmit, pending } = useFormAction(action, onDone);
+  const { error, onSubmit, pending } = useFormRequest(
+    async (form) => {
+      const body = transactionBody(form);
+      if (transaction) {
+        await callBackend(`/transactions/${transaction.id}`, { method: "PATCH", body });
+        return "Lançamento atualizado";
+      }
+      const installments = Number(text(form, "installments") || 1);
+      await callBackend("/transactions", {
+        method: "POST",
+        body: { ...body, ...(installments > 1 && { installments }) },
+      });
+      return installments > 1 ? `Lançamento criado em ${installments} parcelas` : "Lançamento criado";
+    },
+    { onSuccess: onDone },
+  );
 
   const [type, setType] = useState<TransactionType>(transaction?.type ?? "OUTFLOW");
   const [cardId, setCardId] = useState(transaction?.cardId ? String(transaction.cardId) : "none");

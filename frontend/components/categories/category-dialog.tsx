@@ -2,7 +2,6 @@
 
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { createCategory, updateCategory } from "@/app/(app)/categorias/actions";
 import { Field, FormError } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +14,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { callBackend } from "@/lib/call-backend";
+import { optionalText, text } from "@/lib/form-data";
 import { CATEGORY_COLORS, categoryColorStyle } from "@/lib/palette";
 import type { Category, TransactionType } from "@/lib/types";
-import { useFormAction } from "@/lib/use-form-action";
+import { useFormRequest } from "@/lib/use-request";
 
 export function CategoryDialog({
   category,
@@ -65,8 +66,19 @@ function CategoryForm({
   type: TransactionType;
   onDone: () => void;
 }) {
-  const action = category ? updateCategory.bind(null, category.id) : createCategory;
-  const { error, onSubmit, pending } = useFormAction(action, onDone);
+  const { error, onSubmit, pending } = useFormRequest(
+    async (form) => {
+      const body = { name: text(form, "name"), color: optionalText(form, "color") };
+      if (category) {
+        // O tipo da categoria não muda depois de criada
+        await callBackend(`/categories/${category.id}`, { method: "PATCH", body });
+        return "Categoria atualizada";
+      }
+      await callBackend("/categories", { method: "POST", body: { ...body, type: text(form, "type") } });
+      return "Categoria criada";
+    },
+    { onSuccess: onDone },
+  );
   const [color, setColor] = useState<string>(category?.color ?? CATEGORY_COLORS[0].light);
 
   return (

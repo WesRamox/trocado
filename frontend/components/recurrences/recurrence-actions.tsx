@@ -1,9 +1,7 @@
 "use client";
 
 import { CircleStop, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
-import { deleteRecurrence, endRecurrence } from "@/app/(app)/recorrencias/actions";
+import { useState } from "react";
 import { RecurrenceDialog } from "@/components/recurrences/recurrence-dialog";
 import {
   AlertDialog,
@@ -21,8 +19,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { callBackend } from "@/lib/call-backend";
 import { today } from "@/lib/format";
-import type { ActionState, Card, Category, Recurrence } from "@/lib/types";
+import type { Card, Category, Recurrence } from "@/lib/types";
+import { useRequest } from "@/lib/use-request";
 
 export function RecurrenceActions({
   recurrence,
@@ -37,18 +37,26 @@ export function RecurrenceActions({
 }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useRequest();
 
-  const run = (action: () => Promise<ActionState>) =>
-    startTransition(async () => {
-      const result = await action();
-      if (result?.ok) {
-        toast.success(result.message);
-        setConfirming(null);
-      } else if (result) {
-        toast.error(result.message);
-      }
-    });
+  // Encerrar = definir a data de fim; os lançamentos já gerados continuam
+  const end = () =>
+    run(
+      async () => {
+        await callBackend(`/recurrences/${recurrence.id}`, { method: "PATCH", body: { endDate: today() } });
+        return "Recorrência encerrada";
+      },
+      { onSuccess: () => setConfirming(null) },
+    );
+
+  const remove = () =>
+    run(
+      async () => {
+        await callBackend(`/recurrences/${recurrence.id}`, { method: "DELETE" });
+        return "Recorrência excluída";
+      },
+      { onSuccess: () => setConfirming(null) },
+    );
 
   return (
     <>
@@ -96,14 +104,14 @@ export function RecurrenceActions({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>Cancelar</AlertDialogCancel>
             {confirming === "end" ? (
-              <Button disabled={pending} onClick={() => run(() => endRecurrence(recurrence.id, today()))}>
+              <Button disabled={pending} onClick={end}>
                 Encerrar
               </Button>
             ) : (
               <Button
                 className="bg-destructive text-white hover:bg-destructive/90"
                 disabled={pending}
-                onClick={() => run(() => deleteRecurrence(recurrence.id))}
+                onClick={remove}
               >
                 Excluir recorrência
               </Button>

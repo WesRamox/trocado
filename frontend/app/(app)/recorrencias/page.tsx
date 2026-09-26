@@ -8,7 +8,7 @@ import { RecurrenceActions } from "@/components/recurrences/recurrence-actions";
 import { RecurrenceDialog } from "@/components/recurrences/recurrence-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, today } from "@/lib/format";
 import { describeSchedule, hasEnded } from "@/lib/recurrence";
 import type { Card, Category, Recurrence } from "@/lib/types";
@@ -17,9 +17,9 @@ export const metadata: Metadata = { title: "Recorrências" };
 
 export default async function RecurrencesPage() {
   const [recurrences, cards, categories] = await Promise.all([
-    api<Recurrence[]>("/recurrences"),
-    api<Card[]>("/cards"),
-    api<Category[]>("/categories"),
+    callBackend<Recurrence[]>("/recurrences"),
+    callBackend<Card[]>("/cards"),
+    callBackend<Category[]>("/categories"),
   ]);
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const cardById = new Map(cards.map((card) => [card.id, card]));

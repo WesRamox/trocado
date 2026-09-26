@@ -7,7 +7,7 @@ import { CardVisual } from "@/components/cards/card-visual";
 import { EmptyState } from "@/components/empty-state";
 import { MonthNav } from "@/components/month-nav";
 import { TransactionList } from "@/components/transactions/transaction-list";
-import { api, ApiError } from "@/lib/api";
+import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
 import type { Card, Category, Invoice, Transaction } from "@/lib/types";
 
@@ -17,19 +17,19 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
   const { id } = await params;
   const month = parseMonth((await searchParams).mes);
 
-  const card = await api<Card>(`/cards/${Number(id)}`).catch((error) => {
+  const card = await callBackend<Card>(`/cards/${Number(id)}`).catch((error) => {
     if (error instanceof ApiError && (error.status === 404 || error.status === 400)) notFound();
     throw error;
   });
   const isCredit = card.type === "CREDIT";
 
   const [cards, categories, statement] = await Promise.all([
-    api<Card[]>("/cards"),
-    api<Category[]>("/categories"),
+    callBackend<Card[]>("/cards"),
+    callBackend<Category[]>("/categories"),
     // Crédito: fatura que vence no mês. Débito: compras do mês.
     isCredit
-      ? api<Invoice>(`/cards/${card.id}/invoices/${month}`)
-      : api<Transaction[]>(`/transactions?month=${month}&cardId=${card.id}`).then((transactions) => ({
+      ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`)
+      : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }).then((transactions) => ({
           total: transactions.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0),
           dueDate: null,
           transactions,
