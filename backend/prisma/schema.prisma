@@ -118,12 +118,14 @@ model Recurrence {
 }
 
 model Category {
-  id     Int             @id @default(autoincrement())
-  userId Int             @map("user_id")
-  name   String
-  type   TransactionType
-  color  String?         @db.VarChar(7) // hex, ex.: #FF8800
-  icon   String?
+  id                   Int             @id @default(autoincrement())
+  userId               Int             @map("user_id")
+  name                 String
+  type                 TransactionType
+  color                String?         @db.VarChar(7) // hex, ex.: #FF8800
+  icon                 String?
+  // Limite de gastos por mês (só categorias de saída); null = sem orçamento
+  monthlyBudgetInCents Int?            @map("monthly_budget_in_cents")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

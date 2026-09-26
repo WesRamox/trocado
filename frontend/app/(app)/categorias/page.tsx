@@ -6,6 +6,7 @@ import { CategoryDot } from "@/components/category-dot";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
+import { formatMoney } from "@/lib/format";
 import type { Category, TransactionType } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Categorias" };
@@ -50,6 +51,11 @@ export default async function CategoriesPage() {
                     <li key={category.id} className="flex items-center gap-3 px-4 py-2.5">
                       <CategoryDot color={category.color} className="size-3" />
                       <span className="flex-1 truncate text-sm">{category.name}</span>
+                      {category.monthlyBudget !== null && (
+                        <span className="tabular text-xs text-muted-foreground">
+                          {formatMoney(category.monthlyBudget)}/mês
+                        </span>
+                      )}
                       <CategoryActions category={category} />
                     </li>
                   ))}

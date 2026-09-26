@@ -25,6 +25,8 @@ export interface Category {
   type: TransactionType;
   color: string | null;
   icon: string | null;
+  // Limite de gastos por mês (só categorias de saída)
+  monthlyBudget: number | null;
 }
 
 export interface Transaction {

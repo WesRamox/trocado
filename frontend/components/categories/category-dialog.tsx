@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useState } from "react";
+import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { callBackend } from "@/lib/call-backend";
-import { optionalText, text } from "@/lib/form-data";
+import { optionalNumber, optionalText, text } from "@/lib/form-data";
 import { CATEGORY_COLORS, categoryColorStyle } from "@/lib/palette";
 import type { Category, TransactionType } from "@/lib/types";
 import { useFormRequest } from "@/lib/use-request";
@@ -68,7 +69,12 @@ function CategoryForm({
 }) {
   const { error, onSubmit, pending } = useFormRequest(
     async (form) => {
-      const body = { name: text(form, "name"), color: optionalText(form, "color") };
+      const body = {
+        name: text(form, "name"),
+        color: optionalText(form, "color"),
+        // Orçamento só existe para saídas; vazio remove
+        ...(type === "OUTFLOW" && { monthlyBudget: optionalNumber(form, "monthlyBudget") }),
+      };
       if (category) {
         // O tipo da categoria não muda depois de criada
         await callBackend(`/categories/${category.id}`, { method: "PATCH", body });
@@ -114,6 +120,15 @@ function CategoryForm({
           ))}
         </div>
       </fieldset>
+      {type === "OUTFLOW" && (
+        <Field
+          label="Orçamento mensal"
+          htmlFor="monthlyBudget"
+          hint="Opcional. Você acompanha quanto já gastou dele na visão geral."
+        >
+          <CurrencyInput id="monthlyBudget" name="monthlyBudget" defaultValue={category?.monthlyBudget} />
+        </Field>
+      )}
       <FormError message={error} />
       <DialogFooter>
         <Button type="submit" disabled={pending}>
