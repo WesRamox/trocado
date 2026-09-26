@@ -11,9 +11,9 @@ const toCategoryResponse = ({ userId: _userId, ...category }: Category) => categ
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: number, dto: CreateCategoryDto) {
+  async create(userId: number, { name, type, color, icon }: CreateCategoryDto) {
     const category = await this.saveOrConflict(() =>
-      this.prisma.category.create({ data: { userId, ...dto } }),
+      this.prisma.category.create({ data: { userId, name, type, color, icon } }),
     );
     return toCategoryResponse(category);
   }

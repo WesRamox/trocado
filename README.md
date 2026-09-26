@@ -25,7 +25,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 | Parte | Stack |
 |---|---|
 | API (`backend/`) | NestJS 12, Prisma 7, PostgreSQL 16, JWT, class-validator, Vitest |
-| Web (`frontend/`) | Next.js 16 (App Router, Server Actions), React 19, Tailwind CSS 4, shadcn/ui (Radix), next-themes |
+| Web (`frontend/`) | Next.js 16 (App Router, Route Handlers), React 19, Tailwind CSS 4, shadcn/ui (Radix), next-themes |
 
 ## Estrutura
 
@@ -44,15 +44,17 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 ├── frontend/                 app Next.js
 │   ├── app/(auth)/           entrar e criar conta
 │   ├── app/(app)/            visão geral, lançamentos, recorrências, cartões, categorias
+│   ├── app/api/              proxy das chamadas do navegador para a API e login/logout
 │   ├── components/
-│   ├── lib/                  cliente da API, sessão, formatação e indicadores
+│   ├── lib/                  callBackend (cliente da API), sessão, formatação e indicadores
 │   └── proxy.ts              redireciona quem não está logado
+├── .github/workflows/ci.yml  CI: lint, tipos, testes e build a cada pull request
 └── Trocado Logo Mark.html    manual da marca (logo e paleta)
 ```
 
 ## Como rodar localmente
 
-Você precisa de **Node.js 20.9 ou mais recente** e **Docker** (para o PostgreSQL).
+Você precisa de **Node.js 22** (versão em `.nvmrc`, a mesma do CI) e **Docker** (para o PostgreSQL).
 
 ### 1. Banco de dados
 
@@ -66,9 +68,8 @@ docker compose up -d
 ```bash
 cd backend
 cp .env.example .env          # depois preencha o JWT_SECRET (openssl rand -hex 32)
-npm install
+npm install                   # também gera o Prisma Client
 npx prisma migrate deploy --config prisma7.config.ts
-npx prisma generate --config prisma7.config.ts
 npm run start:dev             # http://localhost:3333
 ```
 
@@ -107,7 +108,16 @@ Abra http://localhost:3000 e crie uma conta.
 
 ## Como funciona
 
-- **Sessão:** o token JWT fica num cookie `httpOnly`, e todas as chamadas à API partem do servidor do Next. O navegador nunca vê o token. Sessão expirada leva de volta ao login.
+- **Sessão:** o token JWT fica num cookie `httpOnly` e o JavaScript da página nunca vê o token. Sessão expirada leva de volta ao login.
+- **Chamadas à API:** todas passam por uma única função, `callBackend()` (`frontend/lib/call-backend.ts`), nas páginas (servidor) e nos formulários e botões (navegador):
+
+  ```ts
+  callBackend<Card[]>("/cards")
+  callBackend("/cards", { method: "POST", body: { name: "Nubank" } })
+  callBackend(`/transactions/${id}`, { method: "DELETE", query: { allInstallments: true } })
+  ```
+
+  No servidor, ela chama a API direto com o token da sessão. No navegador, chama `/api/*`, uma rota do Next que anexa o token do cookie. Quem escolhe o destino é o import `#backend-target` do `package.json`.
 - **Dinheiro:** o banco guarda centavos (inteiros). A API recebe e devolve reais com duas casas (`150.75`), sem erros de arredondamento.
 - **Datas:** datas de lançamento não têm horário e são trocadas no formato `YYYY-MM-DD`.
 - **Edição (`PATCH`):** campo omitido não muda, `null` limpa um campo opcional (como `description` ou `cardId`), e `null` em campo obrigatório é recusado com erro 400.
@@ -142,8 +152,13 @@ Todas as rotas exigem `Authorization: Bearer <token>`, exceto cadastro e login. 
 |---|---|---|
 | `backend/` | `npm run start:dev` | API com recarga automática |
 | `backend/` | `npm test` | Testes unitários (Vitest) |
+| `backend/` | `npm run test:e2e` | Testes e2e (precisam de `DATABASE_URL` e `JWT_SECRET`) |
 | `backend/` | `npm run lint` | Lint (oxlint) |
+| `backend/` | `npm run typecheck` | Checagem de tipos |
 | `backend/` | `npm run build` / `npm run start:prod` | Build e execução de produção |
 | `frontend/` | `npm run dev` | App em modo de desenvolvimento |
 | `frontend/` | `npm run lint` | Lint (ESLint) |
+| `frontend/` | `npm run typecheck` | Gera os tipos de rotas do Next e checa os tipos |
 | `frontend/` | `npm run build` / `npm start` | Build e execução de produção |
+
+O CI (`.github/workflows/ci.yml`) roda lint, tipos, testes unitários e e2e e o build dos dois projetos em cada pull request e em cada push na `main`.

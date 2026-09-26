@@ -4,3 +4,6 @@ dist
 .env
 
 /src/generated/prisma
+
+# Cache de build incremental do TypeScript
+*.tsbuildinfo
