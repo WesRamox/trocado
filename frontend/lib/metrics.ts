@@ -63,6 +63,9 @@ const NEUTRAL = { light: "#98a4a6", dark: "#5d6f72" };
 const NEUTRAL_SOFT = { light: "#c6cfcf", dark: "#3f5256" };
 const DARK_BY_LIGHT = new Map<string, string>(CATEGORY_COLORS.map((c) => [c.light, c.dark]));
 
+// Parte das faturas informada só pelo total: fatia própria, separada de "Sem categoria"
+const REMAINDER = "remainder";
+
 export interface CategoryRow extends Slice {
   previous: number;
   change: number | null;
@@ -76,8 +79,11 @@ export function spendingByCategory(
   maxSlices = 6,
 ): CategoryRow[] {
   const byCategory = (list: Transaction[]) => {
-    const totals = new Map<number | null, number>();
-    for (const t of outflows(list)) totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + t.amount);
+    const totals = new Map<number | null | typeof REMAINDER, number>();
+    for (const t of outflows(list)) {
+      const key = t.invoiceRemainder ? REMAINDER : t.categoryId;
+      totals.set(key, (totals.get(key) ?? 0) + t.amount);
+    }
     return totals;
   };
   const current = byCategory(transactions);
@@ -87,14 +93,14 @@ export function spendingByCategory(
 
   const rows = [...current]
     .map(([categoryId, value]): CategoryRow => {
-      const category = categoryId === null ? undefined : categoryById.get(categoryId);
+      const category = typeof categoryId === "number" ? categoryById.get(categoryId) : undefined;
       const color = category?.color
         ? { light: category.color, dark: DARK_BY_LIGHT.get(category.color) ?? category.color }
         : NEUTRAL;
       const previousValue = previous.get(categoryId) ?? 0;
       return {
         key: `c${categoryId ?? "none"}`,
-        label: category?.name ?? "Sem categoria",
+        label: categoryId === REMAINDER ? "Faturas sem detalhe" : (category?.name ?? "Sem categoria"),
         value,
         share: value / total,
         ...color,
@@ -138,8 +144,10 @@ export function spendingByPaymentMethod(transactions: Transaction[], cards: Card
   return groups.filter((g) => g.value > 0).map((g) => ({ ...g, share: g.value / total }));
 }
 
+// Só compras de verdade: o total informado de uma fatura não é um gasto único
 export const topExpenses = (transactions: Transaction[], limit = 5) =>
   outflows(transactions)
+    .filter((t) => !t.invoiceRemainder)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, limit);
 

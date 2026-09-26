@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CardsService } from '../cards/cards.service.js';
-import { invoiceDueDateFor } from '../cards/invoice.js';
+import { invoiceDueDateFor, invoiceLastPurchaseDate } from '../cards/invoice.js';
 import { CategoriesService } from '../categories/categories.service.js';
 import { addMonths, currentMonth, formatDate, monthRange, monthsBetween, parseDate, withDay } from '../common/date.js';
-import { splitCents, toCents, toReais } from '../common/money.js';
+import { formatCents, splitCents, toCents, toReais } from '../common/money.js';
 import { valueOrCurrent } from '../common/patch.js';
 import { CardType, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -117,10 +117,7 @@ export class TransactionsService {
 
   // Fatura de um cartão de crédito, pelo mês de vencimento
   async invoice(userId: number, cardId: number, month: string) {
-    const card = await this.cardsService.findEntity(userId, cardId);
-    if (card.type !== CardType.CREDIT || card.dueDay === null) {
-      throw new BadRequestException('Apenas cartões de crédito têm fatura');
-    }
+    const card = await this.creditCardOf(userId, cardId);
     const { start, end } = monthRange(month);
 
     const transactions = await this.prisma.transaction.findMany({
@@ -136,10 +133,72 @@ export class TransactionsService {
     return {
       cardId,
       month,
-      dueDate: formatDate(transactions[0]?.invoiceDueDate ?? withDay(start, card.dueDay)),
+      dueDate: formatDate(transactions[0]?.invoiceDueDate ?? withDay(start, card.dueDay!)),
       total: toReais(totalCents),
       transactions: transactions.map(toTransactionResponse),
     };
+  }
+
+  // Informa só o total da fatura, sem os itens. A diferença para o que já está lançado nela
+  // (recorrências, compras detalhadas) vira um lançamento "sem detalhe" (invoiceRemainder),
+  // para nada ser contado em dobro. Informar de novo recalcula essa diferença.
+  async setInvoiceTotal(userId: number, cardId: number, month: string, total: number) {
+    const card = await this.creditCardOf(userId, cardId);
+    const { start, end } = monthRange(month);
+    const dueDate = withDay(start, card.dueDay!);
+    // O lançamento fica no último dia de compras do ciclo, então cai exatamente nesta fatura
+    const date = invoiceLastPurchaseDate(dueDate, card.closingDay!);
+    if (formatDate(invoiceDueDateFor(card, date)!) !== formatDate(dueDate)) {
+      // Ex.: fecha dia 28 e vence dia 29: em fevereiro os dois viram 28/02 e não há fatura
+      throw new BadRequestException(`Este cartão não tem fatura com vencimento em ${month}`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const items = await tx.transaction.findMany({
+        where: { userId, cardId, invoiceDueDate: { gte: start, lt: end } },
+      });
+      const remainder = items.find((t) => t.invoiceRemainder);
+      const detailedCents = items
+        .filter((t) => !t.invoiceRemainder)
+        .reduce((sum, t) => sum + (t.type === TransactionType.OUTFLOW ? t.amountInCents : -t.amountInCents), 0);
+      const remainderCents = toCents(total) - detailedCents;
+
+      if (remainderCents < 0) {
+        throw new BadRequestException(
+          `O total não pode ser menor que os ${formatCents(detailedCents)} já lançados nesta fatura`,
+        );
+      }
+      if (remainderCents === 0) {
+        if (remainder) await tx.transaction.delete({ where: { id: remainder.id } });
+        return;
+      }
+      if (remainder) {
+        await tx.transaction.update({ where: { id: remainder.id }, data: { amountInCents: remainderCents } });
+        return;
+      }
+      await tx.transaction.create({
+        data: {
+          userId,
+          cardId,
+          name: `Fatura ${card.name} (sem detalhe)`,
+          amountInCents: remainderCents,
+          type: TransactionType.OUTFLOW,
+          date,
+          invoiceDueDate: dueDate,
+          invoiceRemainder: true,
+        },
+      });
+    });
+    return this.invoice(userId, cardId, month);
+  }
+
+  // Remove o valor "sem detalhe" da fatura (os itens lançados continuam)
+  async removeInvoiceRemainder(userId: number, cardId: number, month: string) {
+    await this.creditCardOf(userId, cardId);
+    const { start, end } = monthRange(month);
+    await this.prisma.transaction.deleteMany({
+      where: { userId, cardId, invoiceRemainder: true, invoiceDueDate: { gte: start, lt: end } },
+    });
   }
 
   async findOne(userId: number, id: number) {
@@ -149,6 +208,9 @@ export class TransactionsService {
   // Campos omitidos não mudam; description, cardId e categoryId aceitam null para limpar
   async update(userId: number, id: number, dto: UpdateTransactionDto) {
     const current = await this.findEntity(userId, id);
+    if (current.invoiceRemainder) {
+      throw new BadRequestException('Este valor vem do total informado da fatura: ajuste o total pelo cartão');
+    }
     const type = valueOrCurrent(dto.type, current.type);
     const cardId = valueOrCurrent(dto.cardId, current.cardId);
     const categoryId = valueOrCurrent(dto.categoryId, current.categoryId);
@@ -184,6 +246,14 @@ export class TransactionsService {
       return;
     }
     await this.prisma.transaction.delete({ where: { id } });
+  }
+
+  private async creditCardOf(userId: number, cardId: number): Promise<Card> {
+    const card = await this.cardsService.findEntity(userId, cardId);
+    if (card.type !== CardType.CREDIT || card.dueDay === null || card.closingDay === null) {
+      throw new BadRequestException('Apenas cartões de crédito têm fatura');
+    }
+    return card;
   }
 
   // Mês atual no fuso da pessoa (quando a consulta não informa o mês)

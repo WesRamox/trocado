@@ -39,7 +39,9 @@ export function TransactionList({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{transaction.name}</p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>{category?.name ?? "Sem categoria"}</span>
+                      <span>
+                        {transaction.invoiceRemainder ? "Fatura sem detalhe" : (category?.name ?? "Sem categoria")}
+                      </span>
                       {card && (
                         <Badge variant="outline" className="font-normal">
                           {card.name}
@@ -48,6 +50,11 @@ export function TransactionList({
                       {transaction.installmentCount && (
                         <Badge variant="secondary" className="tabular font-normal">
                           {transaction.installmentNumber}/{transaction.installmentCount}
+                        </Badge>
+                      )}
+                      {transaction.invoiceRemainder && (
+                        <Badge variant="secondary" className="font-normal">
+                          Total informado
                         </Badge>
                       )}
                       {transaction.recurrenceId && (

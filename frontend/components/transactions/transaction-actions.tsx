@@ -2,6 +2,7 @@
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { InvoiceTotalDialog } from "@/components/cards/invoice-total-dialog";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import {
   AlertDialog,
@@ -36,6 +37,8 @@ export function TransactionActions({
   const [deleting, setDeleting] = useState(false);
   const { run, pending } = useRequest();
   const isInstallment = transaction.installmentGroupId !== null;
+  // Valor "sem detalhe" de uma fatura: ajustado pelo total da fatura, não editado como lançamento
+  const remainderCard = transaction.invoiceRemainder ? cards.find((card) => card.id === transaction.cardId) : undefined;
 
   const remove = (allInstallments: boolean) =>
     run(
@@ -56,7 +59,7 @@ export function TransactionActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
-            <Pencil /> Editar
+            <Pencil /> {remainderCard ? "Ajustar total da fatura" : "Editar"}
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
             <Trash2 /> Excluir
@@ -64,13 +67,22 @@ export function TransactionActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <TransactionDialog
-        cards={cards}
-        categories={categories}
-        transaction={transaction}
-        open={editing}
-        onOpenChange={setEditing}
-      />
+      {remainderCard && transaction.invoiceDueDate ? (
+        <InvoiceTotalDialog
+          card={remainderCard}
+          month={transaction.invoiceDueDate.slice(0, 7)}
+          open={editing}
+          onOpenChange={setEditing}
+        />
+      ) : (
+        <TransactionDialog
+          cards={cards}
+          categories={categories}
+          transaction={transaction}
+          open={editing}
+          onOpenChange={setEditing}
+        />
+      )}
 
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
         <AlertDialogContent>

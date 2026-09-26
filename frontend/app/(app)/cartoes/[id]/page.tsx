@@ -1,12 +1,14 @@
-import { ArrowLeft, ReceiptText } from "lucide-react";
+import { ArrowLeft, ReceiptText, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CardActions } from "@/components/cards/card-actions";
 import { CardVisual } from "@/components/cards/card-visual";
+import { InvoiceTotalDialog } from "@/components/cards/invoice-total-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { MonthNav } from "@/components/month-nav";
 import { TransactionList } from "@/components/transactions/transaction-list";
+import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
@@ -37,6 +39,8 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
           transactions,
         })),
   ]);
+
+  const remainder = statement.transactions.find((t) => t.invoiceRemainder);
 
   const limitUsage =
     isCredit && card.creditLimit ? Math.min(statement.total / card.creditLimit, 1) : null;
@@ -71,6 +75,22 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
                 : `Total de ${monthName(month)}`}
             </p>
             <p className="tabular mt-1 text-4xl font-semibold tracking-tight">{formatMoney(statement.total)}</p>
+            {remainder && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                <span className="tabular">{formatMoney(remainder.amount)}</span> sem detalhe
+              </p>
+            )}
+            {isCredit && (
+              <InvoiceTotalDialog
+                card={card}
+                month={month}
+                trigger={
+                  <Button variant="outline" size="sm" className="mt-4">
+                    <Receipt /> {remainder ? "Ajustar total da fatura" : "Informar total da fatura"}
+                  </Button>
+                }
+              />
+            )}
             {limitUsage !== null && card.creditLimit && (
               <div className="mt-4 max-w-sm">
                 <div

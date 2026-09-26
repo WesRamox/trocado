@@ -49,6 +49,8 @@ export interface Transaction {
   installmentNumber: number | null;
   installmentCount: number | null;
   installmentGroupId: string | null;
+  // Parte da fatura informada só pelo total, sem os itens
+  invoiceRemainder: boolean;
 }
 
 export interface Summary {

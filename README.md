@@ -12,7 +12,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 
 - **Lançamentos:** despesas e entradas com categoria, cartão e observação, inclusive compras parceladas (cada parcela cai no mês e na fatura certos).
 - **Recorrências:** aluguel, assinaturas e salário são cadastrados uma vez e viram lançamentos sozinhos na data. Dá para editar, encerrar ou excluir sem mexer no histórico.
-- **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão.
+- **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão. Quem não quer lançar cada compra pode informar só o total da fatura: o que já está lançado nela é descontado e a diferença entra como "sem detalhe".
 - **Categorias** de entrada e de saída, com cores.
 - **Orçamentos:** um limite mensal opcional por categoria de saída. A visão geral mostra quanto de cada um já foi usado, com alerta a partir de 80% e aviso quando estoura.
 - **Visão geral do mês:**
@@ -145,6 +145,7 @@ Todas as rotas exigem `Authorization: Bearer <token>`, exceto cadastro e login. 
 | `GET` `POST` | `/cards` | Lista / cria (crédito exige `closingDay` e `dueDay`) |
 | `GET` `PATCH` `DELETE` | `/cards/:id` | Um cartão |
 | `GET` | `/cards/:cardId/invoices/:month` | Fatura que vence no mês |
+| `PUT` `DELETE` | `/cards/:cardId/invoices/:month/total` | Informa o total da fatura (`total`); a diferença para os itens lançados vira um lançamento "sem detalhe" (`invoiceRemainder`). `DELETE` remove esse valor |
 | `GET` `POST` | `/categories` | Lista (`?type=`) / cria (`monthlyBudget` opcional, só em saídas) |
 | `GET` `PATCH` `DELETE` | `/categories/:id` | Uma categoria |
 
