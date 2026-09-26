@@ -5,6 +5,7 @@ import { useState } from "react";
 import { logout } from "@/app/(auth)/actions";
 import { AppNav } from "@/components/app-nav";
 import { Logo } from "@/components/logo";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { User } from "@/lib/types";
@@ -19,7 +20,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-sidebar px-4 py-3 lg:hidden">
-        <Logo className="text-white" />
+        <Logo tone="dark" className="text-white" />
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="text-white hover:bg-sidebar-accent hover:text-white">
@@ -42,12 +43,13 @@ export function AppShell({ user, children }: { user: User; children: React.React
 function SidebarContent({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
-      <Logo className="mb-8 px-3 text-white" />
+      <Logo tone="dark" className="mb-8 px-3 text-white" />
       <AppNav onNavigate={onNavigate} />
       <div className="mt-auto border-t border-sidebar-border pt-4">
         <p className="truncate px-3 text-sm font-medium text-white">{user.name}</p>
         <p className="truncate px-3 text-xs text-sidebar-foreground/70">{user.email}</p>
-        <form action={logout} className="mt-3">
+        <ThemeSwitch variant="sidebar" className="mt-3" />
+        <form action={logout}>
           <button
             type="submit"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 outline-none hover:bg-sidebar-accent hover:text-white focus-visible:ring-2 focus-visible:ring-sidebar-ring"
