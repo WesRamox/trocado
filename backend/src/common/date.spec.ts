@@ -1,4 +1,4 @@
-import { addMonths, formatDate, monthRange, parseDate } from './date.js';
+import { addMonths, formatDate, monthRange, monthsBetween, parseDate } from './date.js';
 
 describe('date', () => {
   it('addMonths usa o último dia quando o mês é mais curto', () => {
@@ -11,5 +11,15 @@ describe('date', () => {
     const { start, end } = monthRange('2026-12');
     expect(formatDate(start)).toBe('2026-12-01');
     expect(formatDate(end)).toBe('2027-01-01');
+  });
+});
+
+describe('monthsBetween', () => {
+  it('lista os meses do intervalo, virando o ano', () => {
+    expect(monthsBetween('2026-11', '2027-02')).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
+  });
+
+  it('um único mês', () => {
+    expect(monthsBetween('2026-09', '2026-09')).toEqual(['2026-09']);
   });
 });

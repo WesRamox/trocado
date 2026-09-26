@@ -10,6 +10,15 @@ export class MonthQuery {
   month?: string;
 }
 
+// Intervalo de meses, inclusivo: from=2026-04&to=2026-09
+export class MonthRangeQuery {
+  @IsMonth()
+  from: string;
+
+  @IsMonth()
+  to: string;
+}
+
 export class ListTransactionsQuery extends MonthQuery {
   @IsOptional()
   @IsEnum(TransactionType)

@@ -46,24 +46,26 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const previousMonth = shiftMonth(month, -1);
   const historyMonths = Array.from({ length: HISTORY_MONTHS }, (_, i) => shiftMonth(month, i - HISTORY_MONTHS + 1));
 
-  // O resumo do mês gera as recorrências pendentes; roda antes das outras consultas
-  const summary = await api<Summary>(`/transactions/summary?month=${month}`);
-  const [history, transactions, previousTransactions, cards, categories] = await Promise.all([
-    Promise.all(
-      historyMonths.map((m) =>
-        m === month ? summary : api<Summary>(`/transactions/summary?month=${m}`),
-      ),
-    ),
+  // Tudo em paralelo: cada consulta da API gera as recorrências pendentes antes de ler,
+  // sem duplicar, então a ordem não importa. As faturas só esperam a lista de cartões.
+  const cardsRequest = api<Card[]>("/cards");
+  const [history, transactions, previousTransactions, cards, categories, invoices] = await Promise.all([
+    api<Summary[]>(`/transactions/summary/history?from=${historyMonths[0]}&to=${month}`),
     api<Transaction[]>(`/transactions?month=${month}`),
     api<Transaction[]>(`/transactions?month=${previousMonth}`),
-    api<Card[]>("/cards"),
+    cardsRequest,
     api<Category[]>("/categories"),
+    cardsRequest.then((all) =>
+      Promise.all(
+        all
+          .filter((card) => card.type === "CREDIT")
+          .map((card) => api<Invoice>(`/cards/${card.id}/invoices/${month}`)),
+      ),
+    ),
   ]);
+  const summary = history[HISTORY_MONTHS - 1];
   const previousSummary = history[HISTORY_MONTHS - 2];
   const creditCards = cards.filter((card) => card.type === "CREDIT");
-  const invoices = await Promise.all(
-    creditCards.map((card) => api<Invoice>(`/cards/${card.id}/invoices/${month}`)),
-  );
 
   const previousName = monthName(previousMonth);
   const rate = savingsRate(summary);

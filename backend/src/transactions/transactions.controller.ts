@@ -15,7 +15,7 @@ import {
 import type { JwtPayload } from '../auth/auth.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
-import { ListTransactionsQuery, MonthQuery } from './dto/list-transactions.query.js';
+import { ListTransactionsQuery, MonthQuery, MonthRangeQuery } from './dto/list-transactions.query.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { TransactionsService } from './transactions.service.js';
 
@@ -33,7 +33,12 @@ export class TransactionsController {
     return this.transactionsService.findAll(user.sub, query);
   }
 
-  // Precisa vir antes de ':id' para 'summary' não ser lido como id
+  // As rotas fixas precisam vir antes de ':id' para não serem lidas como id
+  @Get('summary/history')
+  history(@CurrentUser() user: JwtPayload, @Query() query: MonthRangeQuery) {
+    return this.transactionsService.history(user.sub, query.from, query.to);
+  }
+
   @Get('summary')
   summary(@CurrentUser() user: JwtPayload, @Query() query: MonthQuery) {
     return this.transactionsService.summary(user.sub, query.month);

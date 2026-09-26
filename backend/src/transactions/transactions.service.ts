@@ -3,7 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CardsService } from '../cards/cards.service.js';
 import { invoiceDueDateFor } from '../cards/invoice.js';
 import { CategoriesService } from '../categories/categories.service.js';
-import { addMonths, currentMonth, formatDate, monthRange, parseDate, withDay } from '../common/date.js';
+import { addMonths, currentMonth, formatDate, monthRange, monthsBetween, parseDate, withDay } from '../common/date.js';
 import { splitCents, toCents, toReais } from '../common/money.js';
 import { valueOrCurrent } from '../common/patch.js';
 import { CardType, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
@@ -13,6 +13,8 @@ import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { toTransactionResponse } from './transactions.mapper.js';
+
+const MAX_HISTORY_MONTHS = 24;
 
 @Injectable()
 export class TransactionsService {
@@ -76,25 +78,42 @@ export class TransactionsService {
 
   // Total de entradas, saídas e saldo do mês (pela data do lançamento)
   async summary(userId: number, month = currentMonth()) {
+    const [summary] = await this.history(userId, month, month);
+    return summary;
+  }
+
+  // Resumo de cada mês do intervalo (inclusivo), em uma única consulta
+  async history(userId: number, from: string, to: string) {
+    if (from > to) {
+      throw new BadRequestException('from deve ser anterior ou igual a to');
+    }
+    const months = monthsBetween(from, to);
+    if (months.length > MAX_HISTORY_MONTHS) {
+      throw new BadRequestException(`O intervalo pode ter no máximo ${MAX_HISTORY_MONTHS} meses`);
+    }
+
     await this.recurrencesService.generateDueTransactions(userId);
-    const { start, end } = monthRange(month);
-
-    const totals = await this.prisma.transaction.groupBy({
-      by: ['type'],
-      where: { userId, date: { gte: start, lt: end } },
-      _sum: { amountInCents: true },
+    const transactions = await this.prisma.transaction.findMany({
+      where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
+      select: { date: true, type: true, amountInCents: true },
     });
-    const totalOf = (type: TransactionType) =>
-      totals.find((total) => total.type === type)?._sum.amountInCents ?? 0;
 
-    const inflow = totalOf(TransactionType.INFLOW);
-    const outflow = totalOf(TransactionType.OUTFLOW);
-    return {
-      month,
-      inflow: toReais(inflow),
-      outflow: toReais(outflow),
-      balance: toReais(inflow - outflow),
-    };
+    const totals = new Map(months.map((month) => [month, { inflow: 0, outflow: 0 }]));
+    for (const { date, type, amountInCents } of transactions) {
+      const total = totals.get(formatDate(date).slice(0, 7))!;
+      if (type === TransactionType.INFLOW) total.inflow += amountInCents;
+      else total.outflow += amountInCents;
+    }
+
+    return months.map((month) => {
+      const { inflow, outflow } = totals.get(month)!;
+      return {
+        month,
+        inflow: toReais(inflow),
+        outflow: toReais(outflow),
+        balance: toReais(inflow - outflow),
+      };
+    });
   }
 
   // Fatura de um cartão de crédito, pelo mês de vencimento

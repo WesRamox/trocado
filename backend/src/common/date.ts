@@ -51,6 +51,15 @@ export function monthRange(month: string): { start: Date; end: Date } {
   return { start, end: addMonths(start, 1) };
 }
 
+// '2026-04', '2026-06' -> ['2026-04', '2026-05', '2026-06']
+export function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = [];
+  for (let date = parseDate(`${from}-01`); formatDate(date).slice(0, 7) <= to; date = addMonths(date, 1)) {
+    months.push(formatDate(date).slice(0, 7));
+  }
+  return months;
+}
+
 export function currentMonth(): string {
   return formatDate(today()).slice(0, 7);
 }
