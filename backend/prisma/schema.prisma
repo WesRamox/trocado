@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cards        Card[]
+  transactions Transaction[]
+  recurrences  Recurrence[]
+  categories   Category[]
+
+  @@map("users")
+}
+
+model Card {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @map("user_id")
+  type               CardType
+  name               String
+  lastFourDigits     String   @map("last_four_digits") @db.Char(4)
+  // Somente para cartão de crédito
+  closingDay         Int?     @map("closing_day")
+  dueDay             Int?     @map("due_day")
+  creditLimitInCents Int?     @map("credit_limit_in_cents")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  recurrences  Recurrence[]
+
+  @@index([userId])
+  @@map("cards")
+}
+
+model Transaction {
+  id             Int             @id @default(autoincrement())
+  userId         Int             @map("user_id")
+  cardId         Int?            @map("card_id")
+  categoryId     Int?            @map("category_id")
+  recurrenceId   Int?            @map("recurrence_id")
+  name           String
+  description    String?
+  amountInCents  Int             @map("amount_in_cents")
+  type           TransactionType
+  date           DateTime        @db.Date
+  // Vencimento da fatura em que o lançamento entra (só cartão de crédito)
+  invoiceDueDate DateTime?       @map("invoice_due_date") @db.Date
+
+  // Parcelamento: todas as parcelas de uma compra compartilham o mesmo installmentGroupId
+  installmentNumber  Int?    @map("installment_number")
+  installmentCount   Int?    @map("installment_count")
+  installmentGroupId String? @map("installment_group_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card       Card?       @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recurrence Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([cardId, invoiceDueDate])
+  @@index([categoryId])
+  @@index([recurrenceId])
+  @@index([installmentGroupId])
+  @@map("transactions")
+}
+
+model Recurrence {
+  id                Int                 @id @default(autoincrement())
+  userId            Int                 @map("user_id")
+  cardId            Int?                @map("card_id")
+  categoryId        Int?                @map("category_id")
+  name              String
+  description       String?
+  amountInCents     Int                 @map("amount_in_cents")
+  type              TransactionType
+  // Repete a cada `interval` unidades de `frequency` (ex.: MONTHLY + 3 = trimestral)
+  frequency         RecurrenceFrequency
+  interval          Int                 @default(1)
+  // O dia das ocorrências segue o startDate (ex.: começa dia 10 -> todo dia 10)
+  startDate         DateTime            @map("start_date") @db.Date
+  endDate           DateTime?           @map("end_date") @db.Date
+  // Data da última ocorrência já gerada como Transaction
+  lastGeneratedDate DateTime?           @map("last_generated_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card         Card?         @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([cardId])
+  @@index([categoryId])
+  @@map("recurrences")
+}
+
+model Category {
+  id     Int             @id @default(autoincrement())
+  userId Int             @map("user_id")
+  name   String
+  type   TransactionType
+  color  String?         @db.VarChar(7) // hex, ex.: #FF8800
+  icon   String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  recurrences  Recurrence[]
+
+  @@unique([userId, name, type])
+  @@map("categories")
+}
+
+enum CardType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionType {
+  INFLOW
+  OUTFLOW
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}

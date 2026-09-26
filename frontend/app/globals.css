@@ -1,0 +1,145 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-inflow: var(--inflow);
+  --color-gold: var(--brand-gold);
+  --color-outflow: var(--outflow);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  Paleta da marca Trocado: Esmeralda (ações), Ouro (destaques) e Noite (barra lateral e texto).
+  A cor de ação é um tom da Esmeralda um pouco mais escuro que o da logo (#0B8457)
+  para passar de 4.5:1 como texto sobre o fundo. Entrada/saída mantêm o par validado
+  para daltonismo, distinto do verde das ações.
+*/
+:root {
+  --brand-emerald: #0b8457;
+  --brand-gold: #f4b83a;
+  --brand-gold-dark: #d9961a;
+  --brand-night: #0f1f1a;
+  color-scheme: light;
+  --logo-arrow: #0b8457;
+
+  --background: #f6f6f1;
+  --foreground: #0f1f1a;
+  --card: #ffffff;
+  --card-foreground: #0f1f1a;
+  --popover: #ffffff;
+  --popover-foreground: #0f1f1a;
+  --primary: #0a7d52;
+  --primary-foreground: #ffffff;
+  --secondary: #ecede6;
+  --secondary-foreground: #0f1f1a;
+  --muted: #ecede6;
+  --muted-foreground: #5a6a64;
+  --accent: #ecede6;
+  --accent-foreground: #0f1f1a;
+  --destructive: #c03546;
+  --border: #e0e2da;
+  --input: #d2d6cc;
+  --ring: #0a7d52;
+  --radius: 0.625rem;
+
+  /* Par validado para daltonismo (vermelho-verde) e contraste de texto >= 4.5:1 */
+  --inflow: #007fa3;
+  --outflow: #c4452a;
+
+  /* Barra lateral em Noite, com Ouro no item ativo */
+  --sidebar: #0f1f1a;
+  --sidebar-foreground: #dfe9e4;
+  --sidebar-primary: #f4b83a;
+  --sidebar-primary-foreground: #0f1f1a;
+  --sidebar-accent: #1a3029;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #213a31;
+  --sidebar-ring: #f4b83a;
+}
+
+/* Tema escuro: classe .dark no <html>, aplicada pelo next-themes (sistema ou escolha da pessoa) */
+.dark {
+  color-scheme: dark;
+  --logo-arrow: #34c28a;
+  --background: #0c1814;
+  --foreground: #e4ece8;
+  --card: #15241f;
+  --card-foreground: #e4ece8;
+  --popover: #15241f;
+  --popover-foreground: #e4ece8;
+  --primary: #34c28a;
+  --primary-foreground: #0f1f1a;
+  --secondary: #1b2f28;
+  --secondary-foreground: #e4ece8;
+  --muted: #1b2f28;
+  --muted-foreground: #94a79f;
+  --accent: #1b2f28;
+  --accent-foreground: #e4ece8;
+  --destructive: #f07a86;
+  --border: #233a31;
+  --input: #2c463c;
+  --ring: #34c28a;
+
+  --inflow: #1f9ab8;
+  --outflow: #e0683a;
+
+  --sidebar: #08130f;
+  --sidebar-border: #1a2e27;
+  --sidebar-accent: #15261f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Valores alinhados como num extrato */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

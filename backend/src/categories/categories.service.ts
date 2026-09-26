@@ -1,0 +1,73 @@
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { isUniqueViolation } from '../common/prisma-errors.js';
+import type { Category, TransactionType } from '../generated/prisma/client.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CreateCategoryDto } from './dto/create-category.dto.js';
+import { UpdateCategoryDto } from './dto/update-category.dto.js';
+
+const toCategoryResponse = ({ userId: _userId, ...category }: Category) => category;
+
+@Injectable()
+export class CategoriesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(userId: number, dto: CreateCategoryDto) {
+    const category = await this.saveOrConflict(() =>
+      this.prisma.category.create({ data: { userId, ...dto } }),
+    );
+    return toCategoryResponse(category);
+  }
+
+  async findAll(userId: number, type?: TransactionType) {
+    const categories = await this.prisma.category.findMany({
+      where: { userId, type },
+      orderBy: { name: 'asc' },
+    });
+    return categories.map(toCategoryResponse);
+  }
+
+  async findOne(userId: number, id: number) {
+    return toCategoryResponse(await this.findEntity(userId, id));
+  }
+
+  async update(userId: number, id: number, dto: UpdateCategoryDto) {
+    await this.findEntity(userId, id);
+    const category = await this.saveOrConflict(() =>
+      this.prisma.category.update({ where: { id }, data: dto }),
+    );
+    return toCategoryResponse(category);
+  }
+
+  async remove(userId: number, id: number) {
+    await this.findEntity(userId, id);
+    // Os lançamentos continuam existindo, apenas sem categoria (onDelete: SetNull)
+    await this.prisma.category.delete({ where: { id } });
+  }
+
+  async findEntity(userId: number, id: number): Promise<Category> {
+    const category = await this.prisma.category.findFirst({ where: { id, userId } });
+    if (!category) {
+      throw new NotFoundException('Categoria não encontrada');
+    }
+    return category;
+  }
+
+  // Garante que a categoria é do usuário e do mesmo tipo do lançamento
+  async ensureCompatible(userId: number, id: number, type: TransactionType) {
+    const category = await this.findEntity(userId, id);
+    if (category.type !== type) {
+      throw new BadRequestException('A categoria não é do mesmo tipo do lançamento');
+    }
+  }
+
+  private async saveOrConflict(save: () => Promise<Category>): Promise<Category> {
+    try {
+      return await save();
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Já existe uma categoria com esse nome e tipo');
+      }
+      throw error;
+    }
+  }
+}
