@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -88,6 +88,8 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
           <div className="mt-6">
             {statement.transactions.length === 0 ? (
               <EmptyState
+                icon={ReceiptText}
+                tone="sky"
                 title={isCredit ? `Nenhuma compra na fatura de ${monthName(month)}` : "Nenhuma compra neste mês"}
                 description="Compras lançadas com este cartão aparecem aqui."
               />

@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { CalendarDays, Coins, Lock, PiggyBank, Plus, ShoppingBag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BalanceHero } from "@/components/dashboard/balance-hero";
@@ -24,6 +24,8 @@ import {
   today,
 } from "@/lib/format";
 import {
+  FIXED_LIMIT,
+  SAVINGS_GOAL,
   change,
   fixedCommitment,
   savingsRate,
@@ -38,8 +40,6 @@ import type { Card, Category, Invoice, Summary, Transaction } from "@/lib/types"
 export const metadata: Metadata = { title: "Visão geral" };
 
 const HISTORY_MONTHS = 6;
-const SAVINGS_GOAL = 0.2; // regra 50/30/20: guardar ao menos 20% da renda
-const FIXED_LIMIT = 0.5; // e comprometer no máximo 50% com o essencial
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const month = parseMonth((await searchParams).mes);
@@ -100,6 +100,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
       {transactions.length === 0 ? (
         <EmptyState
+          icon={Coins}
+          tone="gold"
           className="mt-10"
           title={`Nada lançado em ${monthName(month)}`}
           description="Comece registrando seu salário ou uma despesa. Os indicadores e gráficos aparecem aqui."
@@ -110,6 +112,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           <section aria-label="Indicadores do mês" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatTile
               label="Taxa de poupança"
+              icon={PiggyBank}
+              tone="emerald"
               value={rate === null ? "—" : formatPercent(rate)}
               delta={
                 rate !== null && previousRate !== null && Math.abs(rate - previousRate) >= 0.005
@@ -129,12 +133,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
             />
             <StatTile
               label="Gastos do mês"
+              icon={ShoppingBag}
+              tone="coral"
               value={formatMoney(summary.outflow)}
               delta={spendingDelta(spendingChange, previousName)}
               detail={previousSummary.outflow > 0 ? `${formatMoney(previousSummary.outflow)} em ${previousName}` : undefined}
             />
             <StatTile
               label="Média de gastos por dia"
+              icon={CalendarDays}
+              tone="sky"
               value={formatMoney(pace.dailyAverage)}
               detail={
                 pace.projection !== null
@@ -144,6 +152,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
             />
             <StatTile
               label="Gastos fixos e parcelas"
+              icon={Lock}
+              tone="violet"
               value={formatMoney(commitment.fixed)}
               meter={
                 commitment.share === null
@@ -221,7 +231,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                         href={`/cartoes/${card.id}?mes=${month}`}
                         className="flex items-center gap-3 px-4 py-3 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       >
-                        <span aria-hidden className="h-5 w-8 shrink-0 rounded" style={{ backgroundColor: cardColor(card.id) }} />
+                        <span aria-hidden className="h-5 w-8 shrink-0 rounded" style={{ backgroundColor: cardColor(card) }} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{card.name}</span>
                           <span className="block text-xs text-muted-foreground">

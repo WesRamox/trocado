@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { CreditCard, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CardDialog } from "@/components/cards/card-dialog";
@@ -27,11 +27,15 @@ export default async function CardsPage() {
     <>
       <PageHeader
         title="Cartões"
+        icon={CreditCard}
+        tone="sky"
         description="Abra um cartão de crédito para ver as faturas."
         actions={newButton}
       />
       {cards.length === 0 ? (
         <EmptyState
+          icon={CreditCard}
+          tone="sky"
           title="Nenhum cartão cadastrado"
           description="Adicione seus cartões para saber em qual fatura cada compra vai cair."
           action={newButton}

@@ -1,7 +1,7 @@
-import { Plus } from "lucide-react";
+import { Plus, Repeat } from "lucide-react";
 import type { Metadata } from "next";
 import { Amount } from "@/components/amount";
-import { CategoryDot } from "@/components/category-dot";
+import { CategoryIcon } from "@/components/category-icon";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { RecurrenceActions } from "@/components/recurrences/recurrence-actions";
@@ -52,7 +52,7 @@ export default async function RecurrencesPage() {
         const card = recurrence.cardId ? cardById.get(recurrence.cardId) : undefined;
         return (
           <li key={recurrence.id} className="flex items-center gap-3 px-4 py-3">
-            <CategoryDot color={category?.color} />
+            <CategoryIcon category={category} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{recurrence.name}</p>
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -81,12 +81,16 @@ export default async function RecurrencesPage() {
     <>
       <PageHeader
         title="Recorrências"
+        icon={Repeat}
+        tone="violet"
         description="Aluguel, assinaturas, salário: cadastre uma vez e os lançamentos aparecem sozinhos na data."
         actions={newButton}
       />
 
       {recurrences.length === 0 ? (
         <EmptyState
+          icon={Repeat}
+          tone="violet"
           title="Nenhuma recorrência cadastrada"
           description="Cadastre contas fixas e entradas que se repetem para não precisar lançar todo mês."
           action={newButton}

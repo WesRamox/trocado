@@ -1,6 +1,6 @@
 import { Amount } from "@/components/amount";
 import { TransactionActions } from "@/components/transactions/transaction-actions";
-import { CategoryDot } from "@/components/category-dot";
+import { CategoryIcon } from "@/components/category-icon";
 import { Badge } from "@/components/ui/badge";
 import { formatLongDate } from "@/lib/format";
 import type { Card, Category, Transaction } from "@/lib/types";
@@ -35,7 +35,7 @@ export function TransactionList({
               const card = transaction.cardId ? cardById.get(transaction.cardId) : undefined;
               return (
                 <li key={transaction.id} className="flex items-center gap-3 px-4 py-3">
-                  <CategoryDot color={category?.color} />
+                  <CategoryIcon category={category} className="size-9 sm:size-10 [&_svg]:size-4 sm:[&_svg]:size-5" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{transaction.name}</p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">

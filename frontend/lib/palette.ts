@@ -19,7 +19,21 @@ export function categoryColorStyle(color: string | null | undefined): React.CSSP
   return { "--c-light": color, "--c-dark": DARK_BY_LIGHT.get(color) ?? color } as React.CSSProperties;
 }
 
-// Cores das cédulas de real, usadas só no desenho dos cartões (com texto branco por cima)
-const BANKNOTE_COLORS = ["#2f63a8", "#6b4fa8", "#b8483a", "#9a6a12", "#8f5a2b", "#1f6f78", "#3f7d4e", "#5b6570"];
+// Cores dos cartões (inspiradas nas cédulas de real). Todas com texto branco acima de 4.5:1.
+export const CARD_COLORS = [
+  { name: "Azul", hex: "#2f63a8" },
+  { name: "Violeta", hex: "#6b4fa8" },
+  { name: "Vermelho", hex: "#b8483a" },
+  { name: "Rosa", hex: "#a8325f" },
+  { name: "Ocre", hex: "#9a6a12" },
+  { name: "Terra", hex: "#8f5a2b" },
+  { name: "Petróleo", hex: "#1f6f78" },
+  { name: "Verde", hex: "#3f7d4e" },
+  { name: "Esmeralda", hex: "#0a7d52" },
+  { name: "Grafite", hex: "#5b6570" },
+  { name: "Preto", hex: "#1c1f24" },
+] as const;
 
-export const cardColor = (id: number) => BANKNOTE_COLORS[id % BANKNOTE_COLORS.length];
+// Cor escolhida, ou uma automática pelo id para cartões sem cor salva
+export const cardColor = (card: { id: number; color: string | null }) =>
+  card.color ?? CARD_COLORS[card.id % CARD_COLORS.length].hex;
