@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createCard, updateCard } from "@/app/(app)/cartoes/actions";
 import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { callBackend } from "@/lib/call-backend";
+import { optionalNumber, text } from "@/lib/form-data";
 import type { Card, CardType } from "@/lib/types";
-import { useFormAction } from "@/lib/use-form-action";
+import { useFormRequest } from "@/lib/use-request";
 
 export function CardDialog({
   card,
@@ -50,9 +51,30 @@ export function CardDialog({
   );
 }
 
+function cardBody(form: FormData) {
+  return {
+    name: text(form, "name"),
+    type: text(form, "type"),
+    lastFourDigits: text(form, "lastFourDigits"),
+    closingDay: optionalNumber(form, "closingDay"),
+    dueDay: optionalNumber(form, "dueDay"),
+    creditLimit: optionalNumber(form, "creditLimit"),
+  };
+}
+
 function CardForm({ card, onDone }: { card?: Card; onDone: () => void }) {
-  const action = card ? updateCard.bind(null, card.id) : createCard;
-  const { error, onSubmit, pending } = useFormAction(action, onDone);
+  const { error, onSubmit, pending } = useFormRequest(
+    async (form) => {
+      const body = cardBody(form);
+      if (card) {
+        await callBackend(`/cards/${card.id}`, { method: "PATCH", body });
+        return "Cartão atualizado";
+      }
+      await callBackend("/cards", { method: "POST", body });
+      return "Cartão adicionado";
+    },
+    { onSuccess: onDone },
+  );
   const [type, setType] = useState<CardType>(card?.type ?? "CREDIT");
 
   return (

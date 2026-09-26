@@ -58,9 +58,6 @@ export interface Invoice {
   transactions: Transaction[];
 }
 
-// Resultado das server actions usadas em formulários
-export type ActionState = { ok: true; message: string } | { ok: false; message: string } | null;
-
 export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
 export interface Recurrence {

@@ -2,6 +2,12 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "imports": {
+    "#backend-target": {
+      "react-server": "./lib/backend-target.server.ts",
+      "default": "./lib/backend-target.client.ts"
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

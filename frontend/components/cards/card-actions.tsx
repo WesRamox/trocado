@@ -2,9 +2,6 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { toast } from "sonner";
-import { deleteCard } from "@/app/(app)/cartoes/actions";
 import { CardDialog } from "@/components/cards/card-dialog";
 import {
   AlertDialog,
@@ -17,23 +14,23 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { callBackend } from "@/lib/call-backend";
 import type { Card } from "@/lib/types";
+import { useRequest } from "@/lib/use-request";
 
 export function CardActions({ card }: { card: Card }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useRequest();
 
+  // Sem refresh: a página do cartão deixa de existir, então volta para a lista
   const remove = () =>
-    startTransition(async () => {
-      const result = await deleteCard(card.id);
-      if (!result) return;
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      toast.success(result.message);
-      router.push("/cartoes");
-    });
+    run(
+      async () => {
+        await callBackend(`/cards/${card.id}`, { method: "DELETE" });
+        return "Cartão excluído";
+      },
+      { onSuccess: () => router.push("/cartoes"), refresh: false },
+    );
 
   return (
     <div className="flex gap-2">

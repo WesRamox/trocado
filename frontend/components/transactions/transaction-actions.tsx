@@ -1,9 +1,7 @@
 "use client";
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
-import { deleteTransaction } from "@/app/(app)/lancamentos/actions";
+import { useState } from "react";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import {
   AlertDialog,
@@ -21,7 +19,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { callBackend } from "@/lib/call-backend";
 import type { Card, Category, Transaction } from "@/lib/types";
+import { useRequest } from "@/lib/use-request";
 
 export function TransactionActions({
   transaction,
@@ -34,19 +34,17 @@ export function TransactionActions({
 }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useRequest();
   const isInstallment = transaction.installmentGroupId !== null;
 
   const remove = (allInstallments: boolean) =>
-    startTransition(async () => {
-      const result = await deleteTransaction(transaction.id, allInstallments);
-      if (result?.ok) {
-        toast.success(result.message);
-        setDeleting(false);
-      } else if (result) {
-        toast.error(result.message);
-      }
-    });
+    run(
+      async () => {
+        await callBackend(`/transactions/${transaction.id}`, { method: "DELETE", query: { allInstallments } });
+        return allInstallments ? "Parcelas excluídas" : "Lançamento excluído";
+      },
+      { onSuccess: () => setDeleting(false) },
+    );
 
   return (
     <>

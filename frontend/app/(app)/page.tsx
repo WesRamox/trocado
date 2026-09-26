@@ -12,7 +12,7 @@ import { MonthNav } from "@/components/month-nav";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { callBackend } from "@/lib/call-backend";
 import {
   formatDate,
   formatMoney,
@@ -48,18 +48,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
   // Tudo em paralelo: cada consulta da API gera as recorrências pendentes antes de ler,
   // sem duplicar, então a ordem não importa. As faturas só esperam a lista de cartões.
-  const cardsRequest = api<Card[]>("/cards");
+  const cardsRequest = callBackend<Card[]>("/cards");
   const [history, transactions, previousTransactions, cards, categories, invoices] = await Promise.all([
-    api<Summary[]>(`/transactions/summary/history?from=${historyMonths[0]}&to=${month}`),
-    api<Transaction[]>(`/transactions?month=${month}`),
-    api<Transaction[]>(`/transactions?month=${previousMonth}`),
+    callBackend<Summary[]>("/transactions/summary/history", { query: { from: historyMonths[0], to: month } }),
+    callBackend<Transaction[]>("/transactions", { query: { month } }),
+    callBackend<Transaction[]>("/transactions", { query: { month: previousMonth } }),
     cardsRequest,
-    api<Category[]>("/categories"),
+    callBackend<Category[]>("/categories"),
     cardsRequest.then((all) =>
       Promise.all(
         all
           .filter((card) => card.type === "CREDIT")
-          .map((card) => api<Invoice>(`/cards/${card.id}/invoices/${month}`)),
+          .map((card) => callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`)),
       ),
     ),
   ]);

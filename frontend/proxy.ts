@@ -5,6 +5,10 @@ const PUBLIC_ROUTES = ["/entrar", "/cadastro"];
 // Checagem otimista: só olha se o cookie existe. A API valida o token de verdade.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Rotas de API respondem com status (401 etc.), não com redirecionamento
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
   const hasSession = request.cookies.has("session");
   const isPublic = PUBLIC_ROUTES.includes(pathname);
 

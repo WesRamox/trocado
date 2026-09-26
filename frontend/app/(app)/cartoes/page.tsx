@@ -6,13 +6,13 @@ import { CardVisual } from "@/components/cards/card-visual";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { callBackend } from "@/lib/call-backend";
 import type { Card } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Cartões" };
 
 export default async function CardsPage() {
-  const cards = await api<Card[]>("/cards");
+  const cards = await callBackend<Card[]>("/cards");
   const newButton = (
     <CardDialog
       trigger={
