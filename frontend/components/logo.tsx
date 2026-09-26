@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 // Cor da seta conforme o fundo, como no manual da marca
@@ -42,12 +43,30 @@ export function LogoMark({
   );
 }
 
-// Marca + nome. tone="dark" para fundos sempre escuros (barra lateral).
-export function Logo({ tone = "auto", className }: { tone?: keyof typeof ARROW; className?: string }) {
+// Marca + nome, com link para a página inicial. tone="dark" para fundos sempre escuros (barra lateral).
+export function Logo({
+  tone = "auto",
+  className,
+  onClick,
+}: {
+  tone?: keyof typeof ARROW;
+  className?: string;
+  // Ex.: fechar o menu do celular ao navegar
+  onClick?: () => void;
+}) {
   return (
-    <span className={cn("inline-flex items-center gap-2 font-semibold tracking-tight", className)}>
+    <Link
+      href="/"
+      onClick={onClick}
+      aria-label="Trocado, página inicial"
+      className={cn(
+        "inline-flex w-fit items-center gap-2 rounded-md font-semibold tracking-tight outline-none focus-visible:ring-2",
+        tone === "dark" ? "focus-visible:ring-sidebar-ring" : "focus-visible:ring-ring",
+        className,
+      )}
+    >
       <LogoMark tone={tone} />
       Trocado
-    </span>
+    </Link>
   );
 }

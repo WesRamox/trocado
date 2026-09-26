@@ -106,6 +106,7 @@ function RecurrenceForm({
   const [type, setType] = useState<TransactionType>(recurrence?.type ?? "OUTFLOW");
   const [cardId, setCardId] = useState(recurrence?.cardId ? String(recurrence.cardId) : "none");
   const [frequency, setFrequency] = useState<RecurrenceFrequency>("MONTHLY");
+  const [every, setEvery] = useState("1");
   const unit = FREQUENCY_OPTIONS.find((option) => option.value === frequency)!.unit;
 
   return (
@@ -130,7 +131,7 @@ function RecurrenceForm({
       </div>
 
       {!recurrence && (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Repete" htmlFor="frequency">
             <Select
               name="frequency"
@@ -149,16 +150,30 @@ function RecurrenceForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label={`A cada quantos ${unit[1]}`} htmlFor="interval">
-            <Input id="interval" name="interval" type="number" min={1} max={365} defaultValue={1} required />
+          <Field label="A cada" htmlFor="interval">
+            <div className="flex items-center gap-2">
+              <Input
+                id="interval"
+                name="interval"
+                type="number"
+                min={1}
+                max={365}
+                required
+                className="w-16"
+                value={every}
+                onChange={(event) => setEvery(event.target.value)}
+              />
+              {/* "1 mês", "3 meses" */}
+              <span className="text-muted-foreground">{every === "1" ? unit[0] : unit[1]}</span>
+            </div>
           </Field>
-          <Field label="Primeira vez em" htmlFor="startDate">
+          <Field label="Primeira vez em" htmlFor="startDate" className="col-span-2 sm:col-span-1">
             <Input id="startDate" name="startDate" type="date" required defaultValue={today()} />
           </Field>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4">
         <Field label="Categoria" htmlFor="categoryId">
           <CategorySelect categories={categories} type={type} defaultValue={recurrence?.categoryId} />
         </Field>
