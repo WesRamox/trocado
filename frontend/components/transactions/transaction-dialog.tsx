@@ -130,20 +130,22 @@ function TransactionForm({
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-[1fr_6rem] gap-4 sm:grid-cols-2">
         <Field label="Cartão" htmlFor="cardId">
           <CardSelect cards={cards} value={cardId} onValueChange={setCardId} />
         </Field>
         {!transaction && type === "OUTFLOW" && (
-          <Field
-            label="Parcelas"
-            htmlFor="installments"
-            hint={selectedCard?.type === "CREDIT" ? "Cada parcela entra na fatura seguinte." : undefined}
-          >
+          <Field label="Parcelas" htmlFor="installments">
             <Input id="installments" name="installments" type="number" min={1} max={120} defaultValue={1} />
           </Field>
         )}
       </div>
+      {/* Dica em linha inteira: na coluna estreita das parcelas ficaria espremida no celular */}
+      {!transaction && type === "OUTFLOW" && selectedCard?.type === "CREDIT" && (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          No crédito, cada parcela entra na fatura do mês seguinte à anterior.
+        </p>
+      )}
 
       <Field label="Observação" htmlFor="description">
         <Input

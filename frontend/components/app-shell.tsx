@@ -45,7 +45,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
 function SidebarContent({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
-      <Logo tone="dark" className="mb-8 px-3 text-white" />
+      <Logo tone="dark" className="mb-8 px-3 text-white" onClick={onNavigate} />
       <AppNav onNavigate={onNavigate} />
       <div className="mt-auto border-t border-sidebar-border pt-4">
         <p className="truncate px-3 text-sm font-medium text-white">{user.name}</p>
