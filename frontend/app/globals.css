@@ -1,26 +1,134 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-inflow: var(--inflow);
+  --color-outflow: var(--outflow);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  Paleta: papel frio de cédula + tinta azul-petróleo.
+  Violeta para ações; verde/vermelho reservados a entrada/saída.
+*/
+:root {
+  --background: #f3f5f2;
+  --foreground: #14262b;
+  --card: #ffffff;
+  --card-foreground: #14262b;
+  --popover: #ffffff;
+  --popover-foreground: #14262b;
+  --primary: #4b3fb5;
+  --primary-foreground: #ffffff;
+  --secondary: #e7ece9;
+  --secondary-foreground: #14262b;
+  --muted: #e7ece9;
+  --muted-foreground: #5a6b6e;
+  --accent: #e7ece9;
+  --accent-foreground: #14262b;
+  --destructive: #c03546;
+  --border: #dbe2de;
+  --input: #cfd8d3;
+  --ring: #4b3fb5;
+  --radius: 0.625rem;
+
+  /* Par validado para daltonismo (vermelho-verde) e contraste de texto >= 4.5:1 */
+  --inflow: #007fa3;
+  --outflow: #c4452a;
+
+  /* Barra lateral em tinta escura */
+  --sidebar: #14262b;
+  --sidebar-foreground: #d7e2df;
+  --sidebar-primary: #b4acff;
+  --sidebar-primary-foreground: #14262b;
+  --sidebar-accent: #1f363c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #25404a;
+  --sidebar-ring: #b4acff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0e1a1d;
+    --foreground: #e3ecea;
+    --card: #152429;
+    --card-foreground: #e3ecea;
+    --popover: #152429;
+    --popover-foreground: #e3ecea;
+    --primary: #9a8ff5;
+    --primary-foreground: #120e33;
+    --secondary: #1d3036;
+    --secondary-foreground: #e3ecea;
+    --muted: #1d3036;
+    --muted-foreground: #92a5a7;
+    --accent: #1d3036;
+    --accent-foreground: #e3ecea;
+    --destructive: #f07a86;
+    --border: #243a40;
+    --input: #2d464d;
+    --ring: #9a8ff5;
+
+    --inflow: #1f9ab8;
+    --outflow: #e0683a;
+
+    --sidebar: #0a1416;
+    --sidebar-border: #1c2f34;
+    --sidebar-accent: #172a2f;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Valores alinhados como num extrato */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
