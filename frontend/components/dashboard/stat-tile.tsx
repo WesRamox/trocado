@@ -1,4 +1,6 @@
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { IconBadge } from "@/components/icon-badge";
+import type { Tone } from "@/lib/tones";
 import { cn } from "@/lib/utils";
 
 export interface Delta {
@@ -12,12 +14,16 @@ export interface Delta {
 // Indicador: rótulo, valor, variação opcional e medidor opcional com marca de referência
 export function StatTile({
   label,
+  icon,
+  tone,
   value,
   detail,
   delta,
   meter,
 }: {
   label: string;
+  icon: LucideIcon;
+  tone: Tone;
   value: string;
   detail?: string;
   delta?: Delta | null;
@@ -26,8 +32,11 @@ export function StatTile({
   const Arrow = delta?.direction === "up" ? ArrowUpRight : ArrowDownRight;
   return (
     <div className="rounded-xl border bg-card p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="tabular mt-1 text-2xl font-semibold tracking-tight">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <IconBadge icon={icon} tone={tone} size="sm" />
+      </div>
+      <p className="tabular -mt-2 text-2xl font-semibold tracking-tight">{value}</p>
       {delta && (
         <p className={cn("mt-1 flex items-center gap-0.5 text-xs font-medium", delta.good ? "text-inflow" : "text-outflow")}>
           <Arrow className="size-3.5" aria-hidden />

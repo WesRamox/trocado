@@ -29,15 +29,18 @@ model User {
 }
 
 model Card {
-  id                 Int      @id @default(autoincrement())
-  userId             Int      @map("user_id")
+  id                 Int       @id @default(autoincrement())
+  userId             Int       @map("user_id")
   type               CardType
   name               String
-  lastFourDigits     String   @map("last_four_digits") @db.Char(4)
+  lastFourDigits     String    @map("last_four_digits") @db.Char(4)
+  brand              CardBrand @default(OTHER)
+  // Cor do cartão (hex); sem cor, o app escolhe uma pelo id
+  color              String?   @db.VarChar(7)
   // Somente para cartão de crédito
-  closingDay         Int?     @map("closing_day")
-  dueDay             Int?     @map("due_day")
-  creditLimitInCents Int?     @map("credit_limit_in_cents")
+  closingDay         Int?      @map("closing_day")
+  dueDay             Int?      @map("due_day")
+  creditLimitInCents Int?      @map("credit_limit_in_cents")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -141,6 +144,15 @@ model Category {
 enum CardType {
   CREDIT
   DEBIT
+}
+
+enum CardBrand {
+  VISA
+  MASTERCARD
+  ELO
+  AMEX
+  HIPERCARD
+  OTHER
 }
 
 enum TransactionType {

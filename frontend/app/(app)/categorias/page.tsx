@@ -1,8 +1,8 @@
-import { Plus } from "lucide-react";
+import { Plus, Tags } from "lucide-react";
 import type { Metadata } from "next";
 import { CategoryActions } from "@/components/categories/category-actions";
 import { CategoryDialog } from "@/components/categories/category-dialog";
-import { CategoryDot } from "@/components/category-dot";
+import { CategoryIcon } from "@/components/category-icon";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
@@ -23,6 +23,8 @@ export default async function CategoriesPage() {
     <>
       <PageHeader
         title="Categorias"
+        icon={Tags}
+        tone="gold"
         description="Separe para onde vai e de onde vem o dinheiro."
       />
       <div className="grid gap-8 md:grid-cols-2">
@@ -49,7 +51,7 @@ export default async function CategoriesPage() {
                 <ul className="divide-y rounded-xl border bg-card">
                   {group.map((category) => (
                     <li key={category.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <CategoryDot color={category.color} className="size-3" />
+                      <CategoryIcon category={category} size="sm" />
                       <span className="flex-1 truncate text-sm">{category.name}</span>
                       {category.monthlyBudget !== null && (
                         <span className="tabular text-xs text-muted-foreground">

@@ -2,6 +2,7 @@
 
 export type TransactionType = "INFLOW" | "OUTFLOW";
 export type CardType = "CREDIT" | "DEBIT";
+export type CardBrand = "VISA" | "MASTERCARD" | "ELO" | "AMEX" | "HIPERCARD" | "OTHER";
 
 export interface User {
   id: number;
@@ -13,6 +14,9 @@ export interface Card {
   id: number;
   name: string;
   type: CardType;
+  brand: CardBrand;
+  // Hex escolhido; null = cor automática pelo id
+  color: string | null;
   lastFourDigits: string;
   closingDay: number | null;
   dueDay: number | null;

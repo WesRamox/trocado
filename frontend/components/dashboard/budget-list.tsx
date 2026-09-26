@@ -1,5 +1,5 @@
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
-import { CategoryDot } from "@/components/category-dot";
+import { CategoryIcon } from "@/components/category-icon";
 import { formatMoney, formatPercent } from "@/lib/format";
 import type { BudgetRow, BudgetStatus } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ export function BudgetList({ rows }: { rows: BudgetRow[] }) {
         return (
           <li key={category.id} className="rounded-xl border bg-card p-4">
             <div className="flex items-center gap-2">
-              <CategoryDot color={category.color} className="size-2.5" />
+              <CategoryIcon category={category} size="xs" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{category.name}</span>
               <span className="tabular text-xs text-muted-foreground">{formatPercent(share)}</span>
             </div>
