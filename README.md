@@ -14,6 +14,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 - **Recorrências:** aluguel, assinaturas e salário são cadastrados uma vez e viram lançamentos sozinhos na data. Dá para editar, encerrar ou excluir sem mexer no histórico.
 - **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão.
 - **Categorias** de entrada e de saída, com cores.
+- **Orçamentos:** um limite mensal opcional por categoria de saída. A visão geral mostra quanto de cada um já foi usado, com alerta a partir de 80% e aviso quando estoura.
 - **Visão geral do mês:**
   - saldo, taxa de poupança, gastos em relação ao mês anterior, média diária com projeção, e quanto das entradas já está comprometido com gastos fixos;
   - pizzas de gastos por categoria e por forma de pagamento;
@@ -143,7 +144,7 @@ Todas as rotas exigem `Authorization: Bearer <token>`, exceto cadastro e login. 
 | `GET` `POST` | `/cards` | Lista / cria (crédito exige `closingDay` e `dueDay`) |
 | `GET` `PATCH` `DELETE` | `/cards/:id` | Um cartão |
 | `GET` | `/cards/:cardId/invoices/:month` | Fatura que vence no mês |
-| `GET` `POST` | `/categories` | Lista (`?type=`) / cria |
+| `GET` `POST` | `/categories` | Lista (`?type=`) / cria (`monthlyBudget` opcional, só em saídas) |
 | `GET` `PATCH` `DELETE` | `/categories/:id` | Uma categoria |
 
 ## Scripts
