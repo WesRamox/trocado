@@ -23,10 +23,10 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register({ name, email, password }: RegisterDto): Promise<PublicUser> {
+  async register({ name, email, password, timezone }: RegisterDto): Promise<PublicUser> {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     try {
-      return await this.usersService.create({ name, email, password: hashedPassword });
+      return await this.usersService.create({ name, email, password: hashedPassword, timezone });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('Email já cadastrado');

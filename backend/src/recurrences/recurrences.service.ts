@@ -40,7 +40,7 @@ export class RecurrencesService {
         categoryId: dto.categoryId,
       },
     });
-    return toRecurrenceResponse(recurrence);
+    return toRecurrenceResponse(await this.generateNow(recurrence.id));
   }
 
   async findAll(userId: number) {
@@ -64,7 +64,7 @@ export class RecurrencesService {
       this.ensureValidPeriod(current.startDate, endDate);
     }
 
-    const recurrence = await this.prisma.recurrence.update({
+    await this.prisma.recurrence.update({
       where: { id },
       data: {
         name: dto.name,
@@ -75,7 +75,7 @@ export class RecurrencesService {
         categoryId: dto.categoryId,
       },
     });
-    return toRecurrenceResponse(recurrence);
+    return toRecurrenceResponse(await this.generateNow(id));
   }
 
   async remove(userId: number, id: number) {
@@ -84,33 +84,56 @@ export class RecurrencesService {
     await this.prisma.recurrence.delete({ where: { id } });
   }
 
-  // Gera os lançamentos das ocorrências que já chegaram (até hoje) e ainda não foram gerados
-  async generateDueTransactions(userId: number) {
-    const until = today();
-    const recurrences = await this.prisma.recurrence.findMany({
-      where: { userId, startDate: { lte: until } },
-      include: { card: true },
-    });
-    for (const recurrence of recurrences) {
-      await this.generateFor(recurrence, until);
+  // Gera os lançamentos que já venceram de todas as recorrências, cada uma no "hoje" do fuso
+  // do seu dono. Chamado pelo job de hora em hora (RecurrencesScheduler). Devolve quantos criou.
+  async generateAllDue(batchSize = 500): Promise<number> {
+    // Nenhum fuso está mais adiantado que UTC+14: recorrências que começam depois disso ainda não venceram
+    const latestToday = today('Pacific/Kiritimati');
+    let created = 0;
+    let cursor: number | undefined;
+    for (;;) {
+      const batch = await this.prisma.recurrence.findMany({
+        where: { startDate: { lte: latestToday } },
+        include: { card: true, user: { select: { timezone: true } } },
+        orderBy: { id: 'asc' },
+        take: batchSize,
+        ...(cursor !== undefined && { skip: 1, cursor: { id: cursor } }),
+      });
+      for (const recurrence of batch) {
+        created += await this.generateFor(recurrence, today(recurrence.user.timezone));
+      }
+      if (batch.length < batchSize) return created;
+      cursor = batch.at(-1)!.id;
     }
   }
 
-  private async generateFor(recurrence: Recurrence & { card: Card | null }, today: Date) {
+  // Gera na hora o que já venceu (ex.: recorrência que começa hoje ou no passado) e devolve
+  // a recorrência atualizada, sem esperar o próximo job
+  private async generateNow(id: number): Promise<Recurrence> {
+    const recurrence = await this.prisma.recurrence.findUniqueOrThrow({
+      where: { id },
+      include: { card: true, user: { select: { timezone: true } } },
+    });
+    await this.generateFor(recurrence, today(recurrence.user.timezone));
+    return this.prisma.recurrence.findUniqueOrThrow({ where: { id } });
+  }
+
+  // Devolve quantos lançamentos criou
+  private async generateFor(recurrence: Recurrence & { card: Card | null }, today: Date): Promise<number> {
     const until = recurrence.endDate && recurrence.endDate < today ? recurrence.endDate : today;
     const dates = occurrencesBetween(recurrence, recurrence.lastGeneratedDate, until);
     if (dates.length === 0) {
-      return;
+      return 0;
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      // Só avança se nenhuma outra requisição gerou antes (evita lançamentos duplicados)
+    return this.prisma.$transaction(async (tx) => {
+      // Só avança se nenhuma outra execução gerou antes (evita lançamentos duplicados)
       const { count } = await tx.recurrence.updateMany({
         where: { id: recurrence.id, lastGeneratedDate: recurrence.lastGeneratedDate },
         data: { lastGeneratedDate: dates.at(-1) },
       });
       if (count === 0) {
-        return;
+        return 0;
       }
 
       await tx.transaction.createMany({
@@ -127,6 +150,7 @@ export class RecurrencesService {
           invoiceDueDate: invoiceDueDateFor(recurrence.card, date),
         })),
       });
+      return dates.length;
     });
   }
 

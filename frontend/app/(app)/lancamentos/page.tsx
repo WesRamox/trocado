@@ -9,6 +9,7 @@ import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
 import { formatMoney, monthName, parseMonth } from "@/lib/format";
+import { getProfile } from "@/lib/profile";
 import type { Card, Category, Transaction, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,8 @@ const TYPE_BY_FILTER: Record<string, TransactionType> = { saidas: "OUTFLOW", ent
 
 export default async function TransactionsPage({ searchParams }: PageProps<"/lancamentos">) {
   const params = await searchParams;
-  const month = parseMonth(params.mes);
+  const { timezone } = await getProfile();
+  const month = parseMonth(params.mes, timezone);
   const filter = typeof params.tipo === "string" && params.tipo in TYPE_BY_FILTER ? params.tipo : undefined;
 
   const [transactions, cards, categories] = await Promise.all([

@@ -20,7 +20,17 @@ export class UsersService {
     });
   }
 
-  create(data: { name: string; email: string; password: string }): Promise<PublicUser> {
+  create(data: { name: string; email: string; password: string; timezone?: string }): Promise<PublicUser> {
     return this.prisma.user.create({ data, omit: { password: true } });
+  }
+
+  update(id: number, data: { name?: string; timezone?: string }): Promise<PublicUser> {
+    return this.prisma.user.update({ where: { id }, data, omit: { password: true } });
+  }
+
+  // Fuso da pessoa, para calcular o "hoje" dela
+  async timezoneOf(id: number): Promise<string> {
+    const { timezone } = await this.prisma.user.findUniqueOrThrow({ where: { id }, select: { timezone: true } });
+    return timezone;
   }
 }

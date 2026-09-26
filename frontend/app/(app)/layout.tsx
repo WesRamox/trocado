@@ -1,8 +1,7 @@
 import { AppShell } from "@/components/app-shell";
-import { callBackend } from "@/lib/call-backend";
-import type { User } from "@/lib/types";
+import { getProfile } from "@/lib/profile";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const user = await callBackend<User>("/auth/profile");
+  const user = await getProfile();
   return <AppShell user={user}>{children}</AppShell>;
 }

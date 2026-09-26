@@ -8,6 +8,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  // Fuso IANA (ex.: America/Sao_Paulo): define o "hoje" da pessoa
+  timezone: string;
 }
 
 export interface Card {

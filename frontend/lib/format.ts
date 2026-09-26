@@ -28,19 +28,20 @@ export const formatLongDate = (date: string) =>
     timeZone: "UTC",
   });
 
-export function currentMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+// Hoje ('YYYY-MM-DD') no fuso informado. Sem fuso, usa o do ambiente: no navegador é o da pessoa;
+// no servidor, passe o fuso do perfil (o servidor pode estar em outro fuso).
+export function today(timeZone?: string) {
+  // en-CA formata como YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
 }
 
-export function today() {
-  const now = new Date();
-  return `${currentMonth()}-${String(now.getDate()).padStart(2, "0")}`;
+export function currentMonth(timeZone?: string) {
+  return today(timeZone).slice(0, 7);
 }
 
-// Mês válido da URL ('YYYY-MM') ou o mês atual
-export function parseMonth(value: string | string[] | undefined) {
-  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : currentMonth();
+// Mês válido da URL ('YYYY-MM') ou o mês atual no fuso informado
+export function parseMonth(value: string | string[] | undefined, timeZone?: string) {
+  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : currentMonth(timeZone);
 }
 
 export function shiftMonth(month: string, delta: number) {

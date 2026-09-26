@@ -17,6 +17,8 @@ model User {
   email     String   @unique
   name      String
   password  String
+  // Fuso IANA da pessoa (ex.: America/Sao_Paulo): define o "hoje" das recorrências
+  timezone  String   @default("America/Sao_Paulo") @db.VarChar(64)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
