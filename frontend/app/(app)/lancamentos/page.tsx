@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { ArrowLeftRight, Plus, ReceiptText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
@@ -53,7 +53,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/lan
 
   return (
     <>
-      <PageHeader title="Lançamentos" actions={newButton} />
+      <PageHeader title="Lançamentos" icon={ArrowLeftRight} tone="emerald" actions={newButton} />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <MonthNav month={month} basePath="/lancamentos" params={{ tipo: filter }} />
@@ -79,6 +79,8 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/lan
 
       {transactions.length === 0 ? (
         <EmptyState
+          icon={ReceiptText}
+          tone="emerald"
           title={`Nenhum lançamento em ${monthName(month)}`}
           description="Registre uma despesa ou entrada para ela aparecer aqui."
           action={newButton}

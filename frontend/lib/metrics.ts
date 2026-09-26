@@ -4,6 +4,10 @@
 import { CATEGORY_COLORS } from "./palette";
 import type { Card, Category, Summary, Transaction } from "./types";
 
+// Regra 50/30/20: guardar ao menos 20% da renda e comprometer no máximo 50% com o essencial
+export const SAVINGS_GOAL = 0.2;
+export const FIXED_LIMIT = 0.5;
+
 const outflows = (transactions: Transaction[]) => transactions.filter((t) => t.type === "OUTFLOW");
 const sum = (transactions: Transaction[]) => transactions.reduce((total, t) => total + t.amount, 0);
 
