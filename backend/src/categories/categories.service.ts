@@ -1,19 +1,30 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { toCents, toReais } from '../common/money.js';
 import { isUniqueViolation } from '../common/prisma-errors.js';
-import type { Category, TransactionType } from '../generated/prisma/client.js';
+import { TransactionType, type Category } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
 import { UpdateCategoryDto } from './dto/update-category.dto.js';
 
-const toCategoryResponse = ({ userId: _userId, ...category }: Category) => category;
+export const toCategoryResponse = ({ userId: _userId, monthlyBudgetInCents, ...category }: Category) => ({
+  ...category,
+  monthlyBudget: monthlyBudgetInCents === null ? null : toReais(monthlyBudgetInCents),
+});
+
+// PATCH: undefined mantém o orçamento atual, null remove
+const budgetInCents = (monthlyBudget: number | null | undefined) =>
+  monthlyBudget === undefined || monthlyBudget === null ? monthlyBudget : toCents(monthlyBudget);
 
 @Injectable()
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: number, { name, type, color, icon }: CreateCategoryDto) {
+  async create(userId: number, { name, type, color, icon, monthlyBudget }: CreateCategoryDto) {
+    ensureBudgetAllowed(type, monthlyBudget);
     const category = await this.saveOrConflict(() =>
-      this.prisma.category.create({ data: { userId, name, type, color, icon } }),
+      this.prisma.category.create({
+        data: { userId, name, type, color, icon, monthlyBudgetInCents: budgetInCents(monthlyBudget) },
+      }),
     );
     return toCategoryResponse(category);
   }
@@ -30,10 +41,14 @@ export class CategoriesService {
     return toCategoryResponse(await this.findEntity(userId, id));
   }
 
-  async update(userId: number, id: number, dto: UpdateCategoryDto) {
-    await this.findEntity(userId, id);
+  async update(userId: number, id: number, { name, color, icon, monthlyBudget }: UpdateCategoryDto) {
+    const current = await this.findEntity(userId, id);
+    ensureBudgetAllowed(current.type, monthlyBudget);
     const category = await this.saveOrConflict(() =>
-      this.prisma.category.update({ where: { id }, data: dto }),
+      this.prisma.category.update({
+        where: { id },
+        data: { name, color, icon, monthlyBudgetInCents: budgetInCents(monthlyBudget) },
+      }),
     );
     return toCategoryResponse(category);
   }
@@ -69,5 +84,12 @@ export class CategoriesService {
       }
       throw error;
     }
+  }
+}
+
+// Orçamento limita gastos: não faz sentido em categoria de entrada
+function ensureBudgetAllowed(type: TransactionType, monthlyBudget: number | null | undefined) {
+  if (type === TransactionType.INFLOW && monthlyBudget !== undefined && monthlyBudget !== null) {
+    throw new BadRequestException('Orçamento só vale para categorias de saída');
   }
 }

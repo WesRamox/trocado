@@ -142,3 +142,35 @@ export const topExpenses = (transactions: Transaction[], limit = 5) =>
   outflows(transactions)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, limit);
+
+// Orçamentos: quanto de cada limite mensal já foi gasto no mês
+export type BudgetStatus = "ok" | "warning" | "over";
+
+// A partir de 80% do orçamento, o gasto entra em alerta
+export const BUDGET_WARNING = 0.8;
+
+export interface BudgetRow {
+  category: Category;
+  budget: number;
+  spent: number;
+  // Fração usada (pode passar de 1)
+  share: number;
+  status: BudgetStatus;
+}
+
+export function budgetProgress(transactions: Transaction[], categories: Category[]): BudgetRow[] {
+  const spentByCategory = new Map<number, number>();
+  for (const t of outflows(transactions)) {
+    if (t.categoryId !== null) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) ?? 0) + t.amount);
+  }
+  return categories
+    .filter((category) => category.type === "OUTFLOW" && category.monthlyBudget)
+    .map((category) => {
+      const budget = category.monthlyBudget!;
+      const spent = spentByCategory.get(category.id) ?? 0;
+      const share = spent / budget;
+      const status: BudgetStatus = share > 1 ? "over" : share >= BUDGET_WARNING ? "warning" : "ok";
+      return { category, budget, spent, share, status };
+    })
+    .sort((a, b) => b.share - a.share);
+}

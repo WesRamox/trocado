@@ -2,6 +2,7 @@ import { CalendarDays, Coins, Lock, PiggyBank, Plus, ShoppingBag } from "lucide-
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BalanceHero } from "@/components/dashboard/balance-hero";
+import { BudgetList } from "@/components/dashboard/budget-list";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { DonutChart } from "@/components/dashboard/donut-chart";
 import { HistoryChart } from "@/components/dashboard/history-chart";
@@ -26,6 +27,7 @@ import {
 import {
   FIXED_LIMIT,
   SAVINGS_GOAL,
+  budgetProgress,
   change,
   fixedCommitment,
   savingsRate,
@@ -75,6 +77,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const categoryRows = spendingByCategory(transactions, previousTransactions, categories);
   const paymentSlices = spendingByPaymentMethod(transactions, cards);
   const biggest = topExpenses(transactions);
+  const budgets = budgetProgress(transactions, categories);
   const spendingChange = change(summary.outflow, previousSummary.outflow);
 
   const newButton = (
@@ -167,6 +170,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               detail="Recorrências e parcelas já assumidas."
             />
           </section>
+
+          {budgets.length > 0 && (
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-semibold">Orçamentos de {monthName(month)}</h2>
+                <Link href="/categorias" className="text-sm font-medium text-primary hover:underline">
+                  Ajustar
+                </Link>
+              </div>
+              <BudgetList rows={budgets} />
+            </section>
+          )}
 
           {categoryRows.length > 0 && (
             <div className="grid gap-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
