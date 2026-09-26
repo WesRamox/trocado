@@ -122,7 +122,8 @@ Abra http://localhost:3000 e crie uma conta.
 - **Dinheiro:** o banco guarda centavos (inteiros). A API recebe e devolve reais com duas casas (`150.75`), sem erros de arredondamento.
 - **Datas:** datas de lançamento não têm horário e são trocadas no formato `YYYY-MM-DD`.
 - **Edição (`PATCH`):** campo omitido não muda, `null` limpa um campo opcional (como `description` ou `cardId`), e `null` em campo obrigatório é recusado com erro 400.
-- **Recorrências:** os lançamentos de uma recorrência são criados quando as datas chegam, na primeira consulta seguinte. Consultas simultâneas não geram lançamentos duplicados.
+- **Recorrências:** um job de hora em hora (`RecurrencesScheduler`) cria os lançamentos das ocorrências que já chegaram, no "hoje" do fuso de cada pessoa. Criar ou editar uma recorrência gera na hora o que já venceu. As consultas (GET) só leem. Se o servidor ficar fora do ar, a próxima execução gera o que ficou para trás, e execuções simultâneas não duplicam lançamentos.
+- **Fuso horário:** cada pessoa tem um fuso IANA (`timezone`), capturado do navegador no cadastro (padrão `America/Sao_Paulo`). Ele define o "hoje" das recorrências e o mês atual das telas.
 - **Faturas:** compras feitas a partir do dia de fechamento entram na fatura seguinte. O vencimento de cada lançamento fica gravado, então mudar o fechamento do cartão não altera faturas antigas.
 - **Acesso aos dados:** cada usuário só enxerga e só usa os próprios cartões, categorias e lançamentos.
 
@@ -132,9 +133,9 @@ Todas as rotas exigem `Authorization: Bearer <token>`, exceto cadastro e login. 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/auth/register` | Cria conta (`name`, `email`, `password`) |
+| `POST` | `/auth/register` | Cria conta (`name`, `email`, `password`, `timezone` opcional) |
 | `POST` | `/auth/login` | Retorna `{ access_token }` |
-| `GET` | `/auth/profile` | Usuário logado |
+| `GET` `PATCH` | `/auth/profile` | Usuário logado / altera `name` e `timezone` |
 | `GET` `POST` | `/transactions` | Lista por mês (`?month=&type=&cardId=&categoryId=`) / cria (com `installments` para parcelar) |
 | `GET` `PATCH` `DELETE` | `/transactions/:id` | Um lançamento. `DELETE ?allInstallments=true` remove todas as parcelas da compra |
 | `GET` | `/transactions/summary?month=` | Entradas, saídas e saldo do mês |

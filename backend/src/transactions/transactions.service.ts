@@ -8,7 +8,7 @@ import { splitCents, toCents, toReais } from '../common/money.js';
 import { valueOrCurrent } from '../common/patch.js';
 import { CardType, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RecurrencesService } from '../recurrences/recurrences.service.js';
+import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
@@ -22,7 +22,7 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly cardsService: CardsService,
     private readonly categoriesService: CategoriesService,
-    private readonly recurrencesService: RecurrencesService,
+    private readonly usersService: UsersService,
   ) {}
 
   // Sempre retorna uma lista: 1 lançamento, ou 1 por parcela
@@ -60,8 +60,7 @@ export class TransactionsService {
   }
 
   async findAll(userId: number, query: ListTransactionsQuery) {
-    await this.recurrencesService.generateDueTransactions(userId);
-    const { start, end } = monthRange(query.month ?? currentMonth());
+    const { start, end } = monthRange(query.month ?? (await this.currentMonthOf(userId)));
 
     const transactions = await this.prisma.transaction.findMany({
       where: {
@@ -77,7 +76,8 @@ export class TransactionsService {
   }
 
   // Total de entradas, saídas e saldo do mês (pela data do lançamento)
-  async summary(userId: number, month = currentMonth()) {
+  async summary(userId: number, month?: string) {
+    month ??= await this.currentMonthOf(userId);
     const [summary] = await this.history(userId, month, month);
     return summary;
   }
@@ -92,7 +92,6 @@ export class TransactionsService {
       throw new BadRequestException(`O intervalo pode ter no máximo ${MAX_HISTORY_MONTHS} meses`);
     }
 
-    await this.recurrencesService.generateDueTransactions(userId);
     const transactions = await this.prisma.transaction.findMany({
       where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
       select: { date: true, type: true, amountInCents: true },
@@ -122,7 +121,6 @@ export class TransactionsService {
     if (card.type !== CardType.CREDIT || card.dueDay === null) {
       throw new BadRequestException('Apenas cartões de crédito têm fatura');
     }
-    await this.recurrencesService.generateDueTransactions(userId);
     const { start, end } = monthRange(month);
 
     const transactions = await this.prisma.transaction.findMany({
@@ -186,6 +184,11 @@ export class TransactionsService {
       return;
     }
     await this.prisma.transaction.delete({ where: { id } });
+  }
+
+  // Mês atual no fuso da pessoa (quando a consulta não informa o mês)
+  private async currentMonthOf(userId: number) {
+    return currentMonth(await this.usersService.timezoneOf(userId));
   }
 
   private async findEntity(userId: number, id: number): Promise<Transaction> {

@@ -13,7 +13,11 @@ export function RegisterForm() {
     async (form) => {
       const email = text(form, "email");
       const password = text(form, "password");
-      await callBackend("/auth/register", { method: "POST", body: { name: text(form, "name"), email, password } });
+      await callBackend("/auth/register", {
+        method: "POST",
+        // O fuso do navegador define o "hoje" das recorrências; dá para mudar depois
+        body: { name: text(form, "name"), email, password, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      });
       // /auth/login é uma rota do Next: guarda o token no cookie httpOnly
       await callBackend("/auth/login", { method: "POST", body: { email, password } });
     },

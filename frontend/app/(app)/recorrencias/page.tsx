@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, today } from "@/lib/format";
+import { getProfile } from "@/lib/profile";
 import { describeSchedule, hasEnded } from "@/lib/recurrence";
 import type { Card, Category, Recurrence } from "@/lib/types";
 
@@ -23,7 +24,7 @@ export default async function RecurrencesPage() {
   ]);
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const cardById = new Map(cards.map((card) => [card.id, card]));
-  const now = today();
+  const now = today((await getProfile()).timezone);
 
   const active = recurrences.filter((recurrence) => !hasEnded(recurrence, now));
   const ended = recurrences.filter((recurrence) => hasEnded(recurrence, now));

@@ -17,10 +17,14 @@ export function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-// Data de hoje no fuso do servidor.
-export function today(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+// Fuso de quem ainda não escolheu outro (e das contas criadas antes de existir a coluna)
+export const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
+
+// Data de hoje no fuso da pessoa: às 23h de 26/09 em São Paulo já é 27/09 em UTC,
+// mas o "hoje" dela ainda é 26/09.
+export function today(timeZone = DEFAULT_TIMEZONE, now = new Date()): Date {
+  // en-CA formata como YYYY-MM-DD
+  return parseDate(new Intl.DateTimeFormat('en-CA', { timeZone }).format(now));
 }
 
 export function addDays(date: Date, days: number): Date {
@@ -60,6 +64,6 @@ export function monthsBetween(from: string, to: string): string[] {
   return months;
 }
 
-export function currentMonth(): string {
-  return formatDate(today()).slice(0, 7);
+export function currentMonth(timeZone = DEFAULT_TIMEZONE): string {
+  return formatDate(today(timeZone)).slice(0, 7);
 }

@@ -37,6 +37,7 @@ import {
   topExpenses,
 } from "@/lib/metrics";
 import { cardColor } from "@/lib/palette";
+import { getProfile } from "@/lib/profile";
 import type { Card, Category, Invoice, Summary, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Visão geral" };
@@ -44,12 +45,12 @@ export const metadata: Metadata = { title: "Visão geral" };
 const HISTORY_MONTHS = 6;
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
-  const month = parseMonth((await searchParams).mes);
+  const { timezone } = await getProfile();
+  const month = parseMonth((await searchParams).mes, timezone);
   const previousMonth = shiftMonth(month, -1);
   const historyMonths = Array.from({ length: HISTORY_MONTHS }, (_, i) => shiftMonth(month, i - HISTORY_MONTHS + 1));
 
-  // Tudo em paralelo: cada consulta da API gera as recorrências pendentes antes de ler,
-  // sem duplicar, então a ordem não importa. As faturas só esperam a lista de cartões.
+  // Tudo em paralelo; as faturas só esperam a lista de cartões.
   const cardsRequest = callBackend<Card[]>("/cards");
   const [history, transactions, previousTransactions, cards, categories, invoices] = await Promise.all([
     callBackend<Summary[]>("/transactions/summary/history", { query: { from: historyMonths[0], to: month } }),
@@ -72,7 +73,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const previousName = monthName(previousMonth);
   const rate = savingsRate(summary);
   const previousRate = savingsRate(previousSummary);
-  const pace = spendingPace(transactions, month, today());
+  const pace = spendingPace(transactions, month, today(timezone));
   const commitment = fixedCommitment(transactions, summary.inflow);
   const categoryRows = spendingByCategory(transactions, previousTransactions, categories);
   const paymentSlices = spendingByPaymentMethod(transactions, cards);

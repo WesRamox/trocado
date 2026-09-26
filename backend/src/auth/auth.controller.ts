@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Patch, Post } from '@nestjs/common';
 import { UsersService } from '../users/users.service.js';
 import { AuthService, type JwtPayload } from './auth.service.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -33,5 +34,10 @@ export class AuthController {
       throw new NotFoundException();
     }
     return profile;
+  }
+
+  @Patch('profile')
+  updateProfile(@CurrentUser() user: JwtPayload, @Body() dto: UpdateProfileDto) {
+    return this.usersService.update(user.sub, dto);
   }
 }

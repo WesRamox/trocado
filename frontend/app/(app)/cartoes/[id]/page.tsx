@@ -9,13 +9,15 @@ import { MonthNav } from "@/components/month-nav";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
+import { getProfile } from "@/lib/profile";
 import type { Card, Category, Invoice, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Cartão" };
 
 export default async function CardPage({ params, searchParams }: PageProps<"/cartoes/[id]">) {
   const { id } = await params;
-  const month = parseMonth((await searchParams).mes);
+  const { timezone } = await getProfile();
+  const month = parseMonth((await searchParams).mes, timezone);
 
   const card = await callBackend<Card>(`/cards/${Number(id)}`).catch((error) => {
     if (error instanceof ApiError && (error.status === 404 || error.status === 400)) notFound();
