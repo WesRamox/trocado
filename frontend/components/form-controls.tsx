@@ -1,6 +1,6 @@
 "use client";
 
-import { CategoryDot } from "@/components/category-dot";
+import { CategoryIcon } from "@/components/category-icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Card, Category, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,7 @@ export function CategorySelect({
         <SelectItem value="none">Sem categoria</SelectItem>
         {options.map((category) => (
           <SelectItem key={category.id} value={String(category.id)}>
-            <CategoryDot color={category.color} className="size-2" />
+            <CategoryIcon category={category} size="xs" />
             {category.name}
           </SelectItem>
         ))}

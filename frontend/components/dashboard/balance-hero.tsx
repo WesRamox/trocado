@@ -1,4 +1,7 @@
-import { formatMoney, monthName } from "@/lib/format";
+import { Sparkles, TriangleAlert, Trophy, type LucideIcon } from "lucide-react";
+import { formatMoney, formatPercent, monthName } from "@/lib/format";
+import { SAVINGS_GOAL } from "@/lib/metrics";
+import { TONES, type Tone } from "@/lib/tones";
 import type { Summary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +23,7 @@ export function BalanceHero({ summary }: { summary: Summary }) {
         {balance < 0 && "− "}
         {formatMoney(Math.abs(balance))}
       </p>
+      <MonthMood summary={summary} />
 
       {total > 0 && (
         <div className="mt-6 flex h-2.5 max-w-xl gap-0.5" role="img" aria-label={`Entradas ${formatMoney(inflow)}, saídas ${formatMoney(outflow)}`}>
@@ -47,5 +51,27 @@ export function BalanceHero({ summary }: { summary: Summary }) {
         </div>
       </dl>
     </section>
+  );
+}
+
+// Um recado sobre o mês: comemora a meta batida, o mês no azul, ou avisa quando fechou no vermelho
+function MonthMood({ summary: { inflow, outflow, balance } }: { summary: Summary }) {
+  if (inflow === 0 && outflow === 0) return null;
+
+  let mood: { icon: LucideIcon; tone: Tone; text: string };
+  if (inflow > 0 && balance / inflow >= SAVINGS_GOAL) {
+    mood = { icon: Trophy, tone: "gold", text: `Meta de poupança batida! Você guardou ${formatPercent(balance / inflow)} das entradas.` };
+  } else if (balance >= 0) {
+    mood = { icon: Sparkles, tone: "emerald", text: `Mês no azul: sobraram ${formatMoney(balance)}.` };
+  } else {
+    mood = { icon: TriangleAlert, tone: "coral", text: `Os gastos passaram das entradas em ${formatMoney(-balance)}.` };
+  }
+
+  const Icon = mood.icon;
+  return (
+    <p className={cn("mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium", TONES[mood.tone])}>
+      <Icon className="size-4" aria-hidden />
+      {mood.text}
+    </p>
   );
 }

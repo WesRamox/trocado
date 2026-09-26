@@ -32,6 +32,8 @@ export class CardsService {
     const merged: CreateCardDto = {
       name: valueOrCurrent(dto.name, current.name),
       type: valueOrCurrent(dto.type, current.type),
+      brand: valueOrCurrent(dto.brand, current.brand),
+      color: valueOrCurrent(dto.color, current.color),
       lastFourDigits: valueOrCurrent(dto.lastFourDigits, current.lastFourDigits),
       closingDay: valueOrCurrent(dto.closingDay, current.closingDay),
       dueDay: valueOrCurrent(dto.dueDay, current.dueDay),
@@ -65,6 +67,8 @@ export class CardsService {
     return {
       name: dto.name,
       type: dto.type,
+      brand: dto.brand,
+      color: dto.color ?? null,
       lastFourDigits: dto.lastFourDigits,
       closingDay: isCredit ? (dto.closingDay ?? null) : null,
       dueDay: isCredit ? (dto.dueDay ?? null) : null,
