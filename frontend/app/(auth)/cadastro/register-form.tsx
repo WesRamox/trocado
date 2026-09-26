@@ -1,15 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Field, FormError } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { callBackend } from "@/lib/call-backend";
 import { text } from "@/lib/form-data";
+import { reloadTo } from "@/lib/navigation";
 import { useFormRequest } from "@/lib/use-request";
 
 export function RegisterForm() {
-  const router = useRouter();
   const { error, onSubmit, pending } = useFormRequest(
     async (form) => {
       const email = text(form, "email");
@@ -18,10 +17,7 @@ export function RegisterForm() {
       // /auth/login é uma rota do Next: guarda o token no cookie httpOnly
       await callBackend("/auth/login", { method: "POST", body: { email, password } });
     },
-    {
-      onSuccess: () => router.replace("/"),
-      refresh: false,
-    },
+    { onSuccess: () => reloadTo("/"), refresh: false },
   );
 
   return (

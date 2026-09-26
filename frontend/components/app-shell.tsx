@@ -1,7 +1,6 @@
 "use client";
 
 import { LogOut, Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { Logo } from "@/components/logo";
@@ -9,6 +8,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { callBackend } from "@/lib/call-backend";
+import { reloadTo } from "@/lib/navigation";
 import type { User } from "@/lib/types";
 import { useRequest } from "@/lib/use-request";
 
@@ -58,13 +58,12 @@ function SidebarContent({ user, onNavigate }: { user: User; onNavigate?: () => v
 }
 
 function LogoutButton() {
-  const router = useRouter();
   const { run, pending } = useRequest();
 
   // /auth/logout é uma rota do Next: limpa o cookie da sessão
   const logout = () =>
     run(() => callBackend("/auth/logout", { method: "POST" }), {
-      onSuccess: () => router.replace("/entrar"),
+      onSuccess: () => reloadTo("/entrar"),
       refresh: false,
     });
 
