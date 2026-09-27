@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 
-const MAX_CENTS = 99_999_999_999; // R$ 999.999.999,99
+const MAX_CENTS = 2_000_000_000; // R$ 20.000.000,00, o teto da API
 
 // Campo de valor em reais no estilo de app de banco: os dígitos entram pela direita.
 // Envia no formulário o valor em reais com ponto decimal (ex.: "150.75").

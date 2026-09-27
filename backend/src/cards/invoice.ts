@@ -1,4 +1,4 @@
-import { addMonths, withDay } from '../common/date.js';
+import { addDays, addMonths, withDay } from '../common/date.js';
 import { CardType, type Card } from '../generated/prisma/client.js';
 
 // Vencimento da fatura em que entra uma compra feita em `date`.
@@ -22,4 +22,13 @@ export function invoiceDueDateFor(card: Card | null, date: Date): Date | null {
     return null;
   }
   return invoiceDueDate(date, card.closingDay, card.dueDay);
+}
+
+// Último dia de compras que entra na fatura que vence em `dueDate` (o dia antes do fechamento).
+// Ex.: fecha dia 3, vence dia 10 -> fatura de 10/10 recebe compras até 02/10.
+export function invoiceLastPurchaseDate(dueDate: Date, closingDay: number): Date {
+  const closingSameMonth = withDay(dueDate, closingDay);
+  const closing =
+    closingSameMonth < dueDate ? closingSameMonth : withDay(addMonths(withDay(dueDate, 1), -1), closingDay);
+  return addDays(closing, -1);
 }

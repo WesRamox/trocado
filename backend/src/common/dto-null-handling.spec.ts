@@ -29,3 +29,11 @@ describe('tratamento de null nos DTOs', () => {
     expect(await errorsFor(CreateTransactionDto, body)).toEqual(['installments']);
   });
 });
+
+describe('teto dos valores', () => {
+  it('recusa valores acima de R$ 20 milhões (os centavos não cabem em Int)', async () => {
+    const body = { name: 'X', type: 'OUTFLOW', date: '2026-09-01' };
+    expect(await errorsFor(CreateTransactionDto, { ...body, amount: 20_000_000 })).toEqual([]);
+    expect(await errorsFor(CreateTransactionDto, { ...body, amount: 300_001_000 })).toEqual(['amount']);
+  });
+});
