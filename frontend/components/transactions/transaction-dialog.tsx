@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
-import { CardSelect, CategorySelect, TypeToggle } from "@/components/form-controls";
+import { CardSelect, CategorySelect, PersonSelect, TypeToggle } from "@/components/form-controls";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,20 +18,33 @@ import { Input } from "@/components/ui/input";
 import { callBackend } from "@/lib/call-backend";
 import { optionalId, optionalText, requireAmount, text } from "@/lib/form-data";
 import { today } from "@/lib/format";
-import type { Card, Category, Transaction, TransactionType } from "@/lib/types";
+import type { Card, Category, Person, Transaction, TransactionType } from "@/lib/types";
 import { useFormRequest } from "@/lib/use-request";
+import { cn } from "@/lib/utils";
 
 interface Props {
   cards: Card[];
   categories: Category[];
+  people: Person[];
   // Sem transaction = criação
   transaction?: Transaction;
+  // Na criação: já começa como compra desta pessoa
+  defaultPersonId?: number;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function TransactionDialog({ cards, categories, transaction, trigger, open, onOpenChange }: Props) {
+export function TransactionDialog({
+  cards,
+  categories,
+  people,
+  transaction,
+  defaultPersonId,
+  trigger,
+  open,
+  onOpenChange,
+}: Props) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -53,7 +66,9 @@ export function TransactionDialog({ cards, categories, transaction, trigger, ope
           <TransactionForm
             cards={cards}
             categories={categories}
+            people={people}
             transaction={transaction}
+            defaultPersonId={defaultPersonId}
             onDone={() => setOpen(false)}
           />
         )}
@@ -71,13 +86,17 @@ function transactionBody(form: FormData) {
     description: optionalText(form, "description"),
     cardId: optionalId(form, "cardId"),
     categoryId: optionalId(form, "categoryId"),
+    // Entradas não têm dono: o campo nem aparece
+    personId: text(form, "type") === "OUTFLOW" ? optionalId(form, "personId") : null,
   };
 }
 
 function TransactionForm({
   cards,
   categories,
+  people,
   transaction,
+  defaultPersonId,
   onDone,
 }: Omit<Props, "trigger" | "open" | "onOpenChange"> & { onDone: () => void }) {
   const { error, onSubmit, pending } = useFormRequest(
@@ -100,6 +119,8 @@ function TransactionForm({
   const [type, setType] = useState<TransactionType>(transaction?.type ?? "OUTFLOW");
   const [cardId, setCardId] = useState(transaction?.cardId ? String(transaction.cardId) : "none");
   const selectedCard = cards.find((card) => String(card.id) === cardId);
+  // Só despesas podem ser de outra pessoa
+  const showPerson = type === "OUTFLOW" && people.length > 0;
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
@@ -147,15 +168,30 @@ function TransactionForm({
         </p>
       )}
 
-      <Field label="Observação" htmlFor="description">
-        <Input
-          id="description"
-          name="description"
-          maxLength={500}
-          defaultValue={transaction?.description ?? ""}
-          placeholder="Opcional"
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {showPerson && (
+          <Field
+            label="De quem é"
+            htmlFor="personId"
+            hint={
+              transaction?.installmentCount
+                ? "Vale para todas as parcelas."
+                : "De outra pessoa: não conta nos seus gastos."
+            }
+          >
+            <PersonSelect people={people} defaultValue={transaction ? transaction.personId : defaultPersonId} />
+          </Field>
+        )}
+        <Field label="Observação" htmlFor="description" className={cn(!showPerson && "sm:col-span-2")}>
+          <Input
+            id="description"
+            name="description"
+            maxLength={500}
+            defaultValue={transaction?.description ?? ""}
+            placeholder="Opcional"
+          />
+        </Field>
+      </div>
 
       <FormError message={error} />
       <DialogFooter>

@@ -13,6 +13,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 - **Lançamentos:** despesas e entradas com categoria, cartão e observação, inclusive compras parceladas (cada parcela cai no mês e na fatura certos).
 - **Recorrências:** aluguel, assinaturas e salário são cadastrados uma vez e viram lançamentos sozinhos na data. Dá para editar, encerrar ou excluir sem mexer no histórico.
 - **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão. Quem não quer lançar cada compra pode informar só o total da fatura: o que já está lançado nela é descontado e a diferença entra como "sem detalhe". Faturas podem ser pagas no todo ou em parte; o limite em uso considera tudo que ainda não foi pago, inclusive as parcelas das próximas faturas, e é liberado conforme os pagamentos.
+- **Emprestados:** compras que outras pessoas (pai, mãe, namorada...) fizeram nos seus cartões. Elas continuam na fatura e no limite, mas saem dos seus gastos. A tela mostra quanto cada pessoa te deve no mês, pelo vencimento das faturas, e quanto ainda está em aberto contando as próximas parcelas; quando ela paga, é só marcar como recebido.
 - **Categorias** de entrada e de saída, com cores.
 - **Orçamentos:** um limite mensal opcional por categoria de saída. A visão geral mostra quanto de cada um já foi usado, com alerta a partir de 80% e aviso quando estoura.
 - **Visão geral do mês:**
@@ -38,6 +39,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 │   │   ├── auth/             cadastro, login e guard JWT (rotas protegidas por padrão)
 │   │   ├── cards/            cartões e cálculo de fatura
 │   │   ├── categories/
+│   │   ├── people/           pessoas que usam seus cartões e o que cada uma deve (emprestados)
 │   │   ├── transactions/     lançamentos, parcelas, resumo, histórico e faturas
 │   │   ├── recurrences/      regras de recorrência e geração dos lançamentos
 │   │   └── common/           dinheiro, datas e validações compartilhadas

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, ChartPie, CreditCard, Repeat, Tags } from "lucide-react";
+import { ArrowLeftRight, ChartPie, CreditCard, HandCoins, Repeat, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/lancamentos", label: "Lançamentos", icon: ArrowLeftRight },
   { href: "/recorrencias", label: "Recorrências", icon: Repeat },
   { href: "/cartoes", label: "Cartões", icon: CreditCard },
+  { href: "/emprestados", label: "Emprestados", icon: HandCoins },
   { href: "/categorias", label: "Categorias", icon: Tags },
 ];
 

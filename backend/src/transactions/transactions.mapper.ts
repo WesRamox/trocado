@@ -7,6 +7,7 @@ export function toTransactionResponse({
   amountInCents,
   date,
   invoiceDueDate,
+  reimbursedAt,
   ...transaction
 }: Transaction) {
   return {
@@ -14,5 +15,6 @@ export function toTransactionResponse({
     amount: toReais(amountInCents),
     date: formatDate(date),
     invoiceDueDate: invoiceDueDate && formatDate(invoiceDueDate),
+    reimbursedAt: reimbursedAt && formatDate(reimbursedAt),
   };
 }

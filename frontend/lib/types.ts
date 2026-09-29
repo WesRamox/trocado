@@ -46,11 +46,44 @@ export interface Transaction {
   cardId: number | null;
   categoryId: number | null;
   recurrenceId: number | null;
+  // De quem é a compra quando outra pessoa usou seu cartão; null = sua
+  personId: number | null;
+  // Dia em que a pessoa reembolsou
+  reimbursedAt: string | null;
   installmentNumber: number | null;
   installmentCount: number | null;
   installmentGroupId: string | null;
   // Parte da fatura informada só pelo total, sem os itens
   invoiceRemainder: boolean;
+}
+
+// Quem usa seus cartões e te reembolsa
+export interface Person {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
+export interface BorrowedPerson {
+  person: Person;
+  total: number;
+  received: number;
+  pending: number;
+  // Último dia em que algo do mês foi recebido
+  receivedAt: string | null;
+  // Tudo que ainda não foi reembolsado, inclusive parcelas dos próximos meses
+  open: number;
+  items: Transaction[];
+}
+
+// O que cobrar no mês (pelo vencimento das faturas)
+export interface Borrowed {
+  month: string;
+  total: number;
+  received: number;
+  pending: number;
+  open: number;
+  people: BorrowedPerson[];
 }
 
 export interface Summary {

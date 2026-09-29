@@ -3,10 +3,20 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CardsService } from '../cards/cards.service.js';
 import { invoiceDueDateFor, invoiceLastPurchaseDate } from '../cards/invoice.js';
 import { CategoriesService } from '../categories/categories.service.js';
-import { addMonths, currentMonth, formatDate, monthRange, monthsBetween, parseDate, withDay } from '../common/date.js';
+import {
+  addMonths,
+  currentMonth,
+  formatDate,
+  monthRange,
+  monthsBetween,
+  parseDate,
+  today,
+  withDay,
+} from '../common/date.js';
 import { formatCents, splitCents, toCents, toReais } from '../common/money.js';
 import { valueOrCurrent } from '../common/patch.js';
-import { CardType, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
+import { CardType, Prisma, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
+import { PeopleService } from '../people/people.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
@@ -27,12 +37,13 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly cardsService: CardsService,
     private readonly categoriesService: CategoriesService,
+    private readonly peopleService: PeopleService,
     private readonly usersService: UsersService,
   ) {}
 
   // Sempre retorna uma lista: 1 lançamento, ou 1 por parcela
   async create(userId: number, dto: CreateTransactionDto) {
-    const card = await this.resolveReferences(userId, dto.type, dto.cardId, dto.categoryId);
+    const card = await this.resolveReferences(userId, dto.type, dto.cardId, dto.categoryId, dto.personId);
 
     const installments = dto.installments ?? 1;
     const totalCents = toCents(dto.amount);
@@ -56,11 +67,18 @@ export class TransactionsService {
         invoiceDueDate: firstInvoiceDueDate && addMonths(firstInvoiceDueDate, i),
         cardId: dto.cardId,
         categoryId: dto.categoryId,
+        personId: dto.personId,
         installmentNumber: groupId ? i + 1 : null,
         installmentCount: groupId ? installments : null,
         installmentGroupId: groupId,
       })),
     });
+    if (dto.personId) {
+      const ids = transactions.map((t) => t.id);
+      await this.settlePastCharges(userId, { id: { in: ids } });
+      const settled = await this.prisma.transaction.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' } });
+      return settled.map(toTransactionResponse);
+    }
     return transactions.map(toTransactionResponse);
   }
 
@@ -98,7 +116,8 @@ export class TransactionsService {
     }
 
     const transactions = await this.prisma.transaction.findMany({
-      where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
+      // Compras de outras pessoas nos seus cartões não são gastos seus
+      where: { userId, personId: null, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
       select: { date: true, type: true, amountInCents: true },
     });
 
@@ -281,9 +300,10 @@ export class TransactionsService {
     const type = valueOrCurrent(dto.type, current.type);
     const cardId = valueOrCurrent(dto.cardId, current.cardId);
     const categoryId = valueOrCurrent(dto.categoryId, current.categoryId);
+    const personId = valueOrCurrent(dto.personId, current.personId);
     const date = dto.date ? parseDate(dto.date) : current.date;
 
-    const card = await this.resolveReferences(userId, type, cardId, categoryId);
+    const card = await this.resolveReferences(userId, type, cardId, categoryId, personId);
     // A fatura só é recalculada se a data ou o cartão mudaram
     const invoiceChanged = dto.date !== undefined || dto.cardId !== undefined;
 
@@ -300,6 +320,13 @@ export class TransactionsService {
         invoiceDueDate: invoiceChanged ? invoiceDueDateFor(card, date) : undefined,
       },
     });
+    if (personId !== current.personId) {
+      // De quem é vale para a compra toda: todas as parcelas mudam juntas, e o reembolso recomeça
+      const purchase = current.installmentGroupId ? { userId, installmentGroupId: current.installmentGroupId } : { id };
+      await this.prisma.transaction.updateMany({ where: purchase, data: { personId, reimbursedAt: null } });
+      if (personId) await this.settlePastCharges(userId, purchase);
+      return this.findOne(userId, id);
+    }
     return toTransactionResponse(transaction);
   }
 
@@ -337,14 +364,34 @@ export class TransactionsService {
   }
 
   // Garante que cartão e categoria são do usuário (e a categoria do mesmo tipo); retorna o cartão
+  // Ao marcar uma compra como de outra pessoa, as parcelas de faturas que já venceram contam como
+  // reembolsadas no vencimento (a pessoa paga no dia do pagamento). Só as próximas ficam a receber.
+  private async settlePastCharges(userId: number, where: Prisma.TransactionWhereInput) {
+    const todayDate = today(await this.usersService.timezoneOf(userId));
+    const items = await this.prisma.transaction.findMany({
+      where: { ...where, userId },
+      select: { id: true, date: true, invoiceDueDate: true },
+    });
+    const past = items.filter((t) => (t.invoiceDueDate ?? t.date) < todayDate);
+    await this.prisma.$transaction(
+      past.map((t) =>
+        this.prisma.transaction.update({ where: { id: t.id }, data: { reimbursedAt: t.invoiceDueDate ?? t.date } }),
+      ),
+    );
+  }
+
   private async resolveReferences(
     userId: number,
     type: TransactionType,
     cardId?: number | null,
     categoryId?: number | null,
+    personId?: number | null,
   ): Promise<Card | null> {
     if (categoryId) {
       await this.categoriesService.ensureCompatible(userId, categoryId, type);
+    }
+    if (personId) {
+      await this.peopleService.findEntity(userId, personId);
     }
     return cardId ? this.cardsService.findEntity(userId, cardId) : null;
   }

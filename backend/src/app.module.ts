@@ -5,6 +5,7 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CardsModule } from './cards/cards.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
+import { PeopleModule } from './people/people.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RecurrencesModule } from './recurrences/recurrences.module.js';
 import { TransactionsModule } from './transactions/transactions.module.js';
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     CardsModule,
     CategoriesModule,
+    PeopleModule,
     TransactionsModule,
     RecurrencesModule,
   ],

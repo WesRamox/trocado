@@ -2,7 +2,8 @@
 
 import { CategoryIcon } from "@/components/category-icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Card, Category, TransactionType } from "@/lib/types";
+import { PersonAvatar } from "@/components/people/person-avatar";
+import type { Card, Category, Person, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // Controles compartilhados pelos formulários de lançamento e de recorrência
@@ -93,6 +94,28 @@ export function CardSelect({
         {cards.map((card) => (
           <SelectItem key={card.id} value={String(card.id)}>
             {card.name} •••• {card.lastFourDigits}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// De quem é a compra; "none" = sua
+export function PersonSelect({ people, defaultValue }: { people: Person[]; defaultValue?: number | null }) {
+  const initial = people.some((person) => person.id === defaultValue) ? String(defaultValue) : "none";
+
+  return (
+    <Select name="personId" defaultValue={initial}>
+      <SelectTrigger id="personId" className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Minha</SelectItem>
+        {people.map((person) => (
+          <SelectItem key={person.id} value={String(person.id)}>
+            <PersonAvatar person={person} size="xs" />
+            {person.name}
           </SelectItem>
         ))}
       </SelectContent>

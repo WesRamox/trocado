@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth, today } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, CreditLimit, Invoice, Transaction } from "@/lib/types";
+import type { Card, Category, CreditLimit, Invoice, Person, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Cartão" };
 
@@ -29,9 +29,10 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
   });
   const isCredit = card.type === "CREDIT";
 
-  const [cards, categories, invoice, debitTransactions, creditLimit] = await Promise.all([
+  const [cards, categories, people, invoice, debitTransactions, creditLimit] = await Promise.all([
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
+    callBackend<Person[]>("/people"),
     // Crédito: fatura que vence no mês. Débito: compras do mês.
     isCredit ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`) : null,
     isCredit ? null : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }),
@@ -150,7 +151,12 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
                 description="Compras lançadas com este cartão aparecem aqui."
               />
             ) : (
-              <TransactionList transactions={statement.transactions} cards={cards} categories={categories} />
+              <TransactionList
+                transactions={statement.transactions}
+                cards={cards}
+                categories={categories}
+                people={people}
+              />
             )}
           </div>
         </section>
