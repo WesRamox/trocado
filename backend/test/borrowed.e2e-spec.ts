@@ -104,6 +104,27 @@ describe('Emprestados (e2e)', () => {
     expect(body.people[0]).toMatchObject({ pending: 100, receivedAt: null, open: 300 });
   });
 
+  it('dá para receber só algumas compras do mês (ex.: as do dia 5)', async () => {
+    // Outra compra da mãe, à vista, na mesma fatura de maio
+    const other = (
+      await http()
+        .post('/transactions')
+        .send({ name: 'Farmácia', amount: 30, type: 'OUTFLOW', date: '2030-04-25', cardId, personId })
+        .expect(201)
+    ).body[0];
+
+    const marked = await http()
+      .put(`/borrowed/${personId}/2030-05/received`)
+      .send({ date: '2030-05-05', ids: [other.id] })
+      .expect(200);
+    expect(marked.body.people[0]).toMatchObject({ total: 130, received: 30, pending: 100 });
+
+    const unmarked = await http().delete(`/borrowed/${personId}/2030-05/received?ids=${other.id}`).expect(200);
+    expect(unmarked.body.people[0]).toMatchObject({ received: 0, pending: 130 });
+
+    await http().delete(`/transactions/${other.id}`).expect(204);
+  });
+
   it('trocar de quem é uma parcela vale para a compra toda', async () => {
     const { body } = await http().patch(`/transactions/${installmentIds[1]}`).send({ personId: null }).expect(200);
     expect(body.personId).toBeNull();

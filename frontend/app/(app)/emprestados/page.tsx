@@ -12,10 +12,11 @@ import { PersonDialog } from "@/components/people/person-dialog";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { groupByChargeDay } from "@/lib/borrowed";
 import { callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
-import type { Borrowed, BorrowedPerson, Card, Category, Person } from "@/lib/types";
+import type { Borrowed, BorrowedPerson, Card, Category, Person, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Emprestados" };
@@ -91,6 +92,8 @@ export default async function BorrowedPage({ searchParams }: PageProps<"/emprest
 
   // Quem tem algo no mês primeiro; quem não tem fica no fim
   const rows = [...borrowed.people].sort((a, b) => Number(b.total !== 0) - Number(a.total !== 0));
+  // O que falta receber em cada dia de cobrança, somando todas as pessoas
+  const byDay = groupByChargeDay(borrowed.people.flatMap((row) => row.items));
 
   return (
     <>
@@ -112,7 +115,11 @@ export default async function BorrowedPage({ searchParams }: PageProps<"/emprest
           icon={Wallet}
           tone="rose"
           value={formatMoney(borrowed.pending)}
-          detail={borrowed.total > 0 ? `de ${formatMoney(borrowed.total)} das faturas de ${name}` : undefined}
+          detail={
+            byDay.length > 0
+              ? byDay.map((group) => `Dia ${group.day}: ${formatMoney(group.pending)}`).join(" · ")
+              : undefined
+          }
         />
         <StatTile
           label={`Recebido em ${name}`}
@@ -197,7 +204,6 @@ function PersonSection({
             {settled && row.receivedAt ? `Recebido em ${formatDate(row.receivedAt)}` : `A cobrar em ${monthLabel}`}
           </p>
         </div>
-        {row.total !== 0 && <ReceivedButton row={row} month={month} />}
       </header>
 
       {row.items.length === 0 ? (
@@ -205,37 +211,52 @@ function PersonSection({
           Nenhuma compra nas faturas de {monthLabel}.
         </p>
       ) : (
-        <ul className="divide-y">
-          {row.items.map((t) => {
-            const card = t.cardId ? cardById.get(t.cardId) : undefined;
-            return (
-              <li key={t.id} className={cn("flex items-center gap-3 px-4 py-2.5", t.reimbursedAt && "opacity-60")}>
-                <div className="min-w-0 flex-1">
-                  <p className={cn("truncate text-sm", t.reimbursedAt && "line-through")}>{t.name}</p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                    {card && (
-                      <Badge variant="outline" className="font-normal">
-                        {card.name}
-                      </Badge>
-                    )}
-                    {t.installmentCount && (
-                      <Badge variant="secondary" className="tabular font-normal">
-                        {t.installmentNumber}/{t.installmentCount}
-                      </Badge>
-                    )}
-                    <span>
-                      {t.invoiceDueDate ? `Fatura vence ${formatDate(t.invoiceDueDate)}` : formatDate(t.date)}
-                    </span>
-                  </div>
-                </div>
-                <span className="tabular text-sm font-medium">
-                  {formatMoney(t.type === "OUTFLOW" ? t.amount : -t.amount)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        groupByChargeDay(row.items).map((group) => (
+          <div key={group.day} className="border-b last:border-b-0">
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2">
+              <div className="flex-1">
+                <p className="text-sm font-medium">A pagar dia {group.day}</p>
+                {group.pending === 0 && group.receivedAt && (
+                  <p className="text-xs text-inflow">Recebido em {formatDate(group.receivedAt)}</p>
+                )}
+              </div>
+              <span className={cn("tabular text-sm font-semibold", group.pending === 0 && "text-inflow")}>
+                {formatMoney(group.pending === 0 ? group.total : group.pending)}
+              </span>
+              <ReceivedButton person={row.person} month={month} group={group} />
+            </div>
+            <ul className="divide-y">
+              {group.items.map((t) => (
+                <BorrowedItem key={t.id} transaction={t} card={t.cardId ? cardById.get(t.cardId) : undefined} />
+              ))}
+            </ul>
+          </div>
+        ))
       )}
     </section>
+  );
+}
+
+function BorrowedItem({ transaction: t, card }: { transaction: Transaction; card?: Card }) {
+  return (
+    <li className={cn("flex items-center gap-3 px-4 py-2.5", t.reimbursedAt && "opacity-60")}>
+      <div className="min-w-0 flex-1">
+        <p className={cn("truncate text-sm", t.reimbursedAt && "line-through")}>{t.name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          {card && (
+            <Badge variant="outline" className="font-normal">
+              {card.name}
+            </Badge>
+          )}
+          {t.installmentCount && (
+            <Badge variant="secondary" className="tabular font-normal">
+              {t.installmentNumber}/{t.installmentCount}
+            </Badge>
+          )}
+          <span>{t.invoiceDueDate ? `Fatura vence ${formatDate(t.invoiceDueDate)}` : formatDate(t.date)}</span>
+        </div>
+      </div>
+      <span className="tabular text-sm font-medium">{formatMoney(t.type === "OUTFLOW" ? t.amount : -t.amount)}</span>
+    </li>
   );
 }
