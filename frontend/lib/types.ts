@@ -112,6 +112,19 @@ export interface Summary {
   projectedOutflow: number;
 }
 
+// Fluxo de caixa do mês: o dinheiro que entra e sai da conta. O cartão de crédito entra pela
+// fatura que vence no mês; compras de outras pessoas, pela fatura inteira, com o reembolso como entrada.
+export interface Cashflow extends Summary {
+  // Entradas fora do cartão de crédito (salário, benefícios...)
+  income: number;
+  // O que as pessoas te devem no mês (Emprestados)
+  reimbursements: number;
+  invoices: { cardId: number; name: string; dueDate: string; total: number }[];
+  invoicesTotal: number;
+  // Saídas fora do cartão de crédito (Pix, boleto, débito, parcelas de empréstimo...)
+  otherOutflow: number;
+}
+
 export interface InvoicePayment {
   id: number;
   amount: number;

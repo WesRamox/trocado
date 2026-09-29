@@ -174,6 +174,63 @@ export class TransactionsService {
       .map(toForecastResponse);
   }
 
+  // Fluxo de caixa do mês: o dinheiro que entra e sai da conta, como numa planilha.
+  // Diferente do resumo (que conta cada compra na data dela), aqui o cartão de crédito
+  // entra pela fatura que vence no mês, e compras de outras pessoas entram pela fatura
+  // inteira, com o reembolso delas como entrada.
+  async cashflow(userId: number, month?: string) {
+    month ??= await this.currentMonthOf(userId);
+    const { start, end } = monthRange(month);
+    const [cards, transactions, recurrences, borrowed] = await Promise.all([
+      this.prisma.card.findMany({ where: { userId }, orderBy: { name: 'asc' } }),
+      this.prisma.transaction.findMany({ where: { userId, date: { gte: start, lt: end } } }),
+      this.recurrencesOf(userId),
+      this.peopleService.borrowed(userId, month),
+    ]);
+    const creditIds = new Set(cards.filter((card) => card.type === CardType.CREDIT).map((card) => card.id));
+    // Fora do crédito (sem cartão ou no débito), o dinheiro sai ou entra no dia
+    const outsideCredit = (t: { cardId: number | null }) => t.cardId === null || !creditIds.has(t.cardId);
+
+    const invoices = await Promise.all([...creditIds].map((cardId) => this.invoice(userId, cardId, month)));
+    const direct = transactions.filter(outsideCredit);
+    const projected = forecastFor(recurrences, { start, end, by: 'date' }).filter(outsideCredit);
+
+    const sumOf = (items: { amountInCents: number }[]) => items.reduce((sum, t) => sum + t.amountInCents, 0);
+    const byType = (items: { type: TransactionType; amountInCents: number }[], type: TransactionType) =>
+      sumOf(items.filter((t) => t.type === type));
+
+    const incomeCents = byType(direct, TransactionType.INFLOW);
+    const projectedIncomeCents = byType(projected, TransactionType.INFLOW);
+    const otherOutflowCents = byType(direct, TransactionType.OUTFLOW);
+    const projectedOtherOutflowCents = byType(projected, TransactionType.OUTFLOW);
+    const invoicesCents = invoices.reduce((sum, invoice) => sum + toCents(invoice.total), 0);
+    const projectedInvoicesCents = invoices.reduce((sum, invoice) => sum + toCents(invoice.projectedTotal), 0);
+    const reimbursementsCents = toCents(borrowed.total);
+
+    const inflowCents = incomeCents + projectedIncomeCents + reimbursementsCents;
+    const outflowCents = invoicesCents + otherOutflowCents + projectedOtherOutflowCents;
+    const cardName = new Map(cards.map((card) => [card.id, card.name]));
+
+    return {
+      month,
+      inflow: toReais(inflowCents),
+      outflow: toReais(outflowCents),
+      balance: toReais(inflowCents - outflowCents),
+      // Quanto dos totais ainda é previsão (recorrências que não chegaram no dia)
+      projectedInflow: toReais(projectedIncomeCents),
+      projectedOutflow: toReais(projectedOtherOutflowCents + projectedInvoicesCents),
+      // Entradas: salário e outras (fora do crédito) + reembolsos de quem usou seus cartões
+      income: toReais(incomeCents + projectedIncomeCents),
+      reimbursements: toReais(reimbursementsCents),
+      // Saídas: faturas que vencem no mês + contas pagas fora do cartão de crédito
+      invoices: invoices
+        .filter((invoice) => invoice.total !== 0)
+        .map(({ cardId, dueDate, total }) => ({ cardId, name: cardName.get(cardId)!, dueDate, total })),
+      invoicesTotal: toReais(invoicesCents),
+      otherOutflow: toReais(otherOutflowCents + projectedOtherOutflowCents),
+    };
+  }
+
   private recurrencesOf(userId: number, cardId?: number) {
     return this.prisma.recurrence.findMany({ where: { userId, cardId }, include: { card: true } });
   }
