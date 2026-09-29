@@ -105,20 +105,20 @@ export class PeopleService {
     };
   }
 
-  // A pessoa pagou o que devia no mês: marca as compras ainda não recebidas
-  async markReceived(userId: number, personId: number, month: string, date: string) {
+  // A pessoa pagou o que devia no mês (ou só parte das compras, com ids): marca as ainda não recebidas
+  async markReceived(userId: number, personId: number, month: string, date: string, ids?: number[]) {
     await this.findEntity(userId, personId);
     await this.prisma.transaction.updateMany({
-      where: { userId, personId, reimbursedAt: null, ...chargeMonthWhere(month) },
+      where: { userId, personId, id: ids && { in: ids }, reimbursedAt: null, ...chargeMonthWhere(month) },
       data: { reimbursedAt: parseDate(date) },
     });
     return this.borrowed(userId, month);
   }
 
-  async unmarkReceived(userId: number, personId: number, month: string) {
+  async unmarkReceived(userId: number, personId: number, month: string, ids?: number[]) {
     await this.findEntity(userId, personId);
     await this.prisma.transaction.updateMany({
-      where: { userId, personId, reimbursedAt: { not: null }, ...chargeMonthWhere(month) },
+      where: { userId, personId, id: ids && { in: ids }, reimbursedAt: { not: null }, ...chargeMonthWhere(month) },
       data: { reimbursedAt: null },
     });
     return this.borrowed(userId, month);
