@@ -11,3 +11,9 @@ export class InvoiceParams {
   @IsMonth()
   month: string;
 }
+
+export class InvoicePaymentParams extends InvoiceParams {
+  @Type(() => Number)
+  @IsInt()
+  paymentId: number;
+}

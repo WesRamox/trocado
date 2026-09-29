@@ -22,10 +22,11 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  cards        Card[]
-  transactions Transaction[]
-  recurrences  Recurrence[]
-  categories   Category[]
+  cards           Card[]
+  transactions    Transaction[]
+  recurrences     Recurrence[]
+  categories      Category[]
+  invoicePayments InvoicePayment[]
 
   @@map("users")
 }
@@ -47,9 +48,10 @@ model Card {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  recurrences  Recurrence[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  recurrences     Recurrence[]
+  invoicePayments InvoicePayment[]
 
   @@index([userId])
   @@map("cards")
@@ -90,6 +92,28 @@ model Transaction {
   @@index([recurrenceId])
   @@index([installmentGroupId])
   @@map("transactions")
+}
+
+// Pagamento (total ou parcial) de uma fatura. Não é um gasto: as compras da fatura já são
+// lançamentos. Serve para saber o que falta pagar e liberar o limite do cartão.
+model InvoicePayment {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  cardId         Int      @map("card_id")
+  // Vencimento da fatura paga
+  invoiceDueDate DateTime @map("invoice_due_date") @db.Date
+  amountInCents  Int      @map("amount_in_cents")
+  // Dia do pagamento
+  date           DateTime @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, invoiceDueDate])
+  @@index([userId])
+  @@map("invoice_payments")
 }
 
 model Recurrence {

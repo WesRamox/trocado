@@ -1,18 +1,20 @@
-import { ArrowLeft, ReceiptText, Receipt } from "lucide-react";
+import { ArrowLeft, HandCoins, ReceiptText, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CardActions } from "@/components/cards/card-actions";
 import { CardVisual } from "@/components/cards/card-visual";
+import { InvoicePaymentDialog } from "@/components/cards/invoice-payment-dialog";
 import { InvoiceTotalDialog } from "@/components/cards/invoice-total-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { MonthNav } from "@/components/month-nav";
 import { TransactionList } from "@/components/transactions/transaction-list";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
-import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
+import { formatDate, formatMoney, monthName, parseMonth, today } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, Invoice, Transaction } from "@/lib/types";
+import type { Card, Category, CreditLimit, Invoice, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Cartão" };
 
@@ -27,23 +29,25 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
   });
   const isCredit = card.type === "CREDIT";
 
-  const [cards, categories, statement] = await Promise.all([
+  const [cards, categories, invoice, debitTransactions, creditLimit] = await Promise.all([
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
     // Crédito: fatura que vence no mês. Débito: compras do mês.
-    isCredit
-      ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`)
-      : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }).then((transactions) => ({
-          total: transactions.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0),
-          dueDate: null,
-          transactions,
-        })),
+    isCredit ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`) : null,
+    isCredit ? null : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }),
+    isCredit && card.creditLimit ? callBackend<CreditLimit>(`/cards/${card.id}/limit`) : null,
   ]);
+  const statement = invoice ?? {
+    total: debitTransactions!.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0),
+    dueDate: null,
+    transactions: debitTransactions!,
+  };
 
   const remainder = statement.transactions.find((t) => t.invoiceRemainder);
+  const status = invoice && invoiceStatus(invoice, today(timezone));
 
-  const limitUsage =
-    isCredit && card.creditLimit ? Math.min(statement.total / card.creditLimit, 1) : null;
+  // Em uso: tudo que ainda não foi pago, inclusive as parcelas das próximas faturas
+  const limitUsage = creditLimit?.limit ? Math.min(creditLimit.used / creditLimit.limit, 1) : null;
 
   return (
     <>
@@ -69,10 +73,15 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
           </div>
 
           <div className="mt-6 border-b pb-6">
-            <p className="text-sm text-muted-foreground">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
               {isCredit && statement.dueDate
                 ? `Vence em ${formatDate(statement.dueDate)}`
                 : `Total de ${monthName(month)}`}
+              {status && (
+                <Badge variant={status.variant} className="font-normal">
+                  {status.label}
+                </Badge>
+              )}
             </p>
             <p className="tabular mt-1 text-4xl font-semibold tracking-tight">{formatMoney(statement.total)}</p>
             {remainder && (
@@ -80,28 +89,53 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
                 <span className="tabular">{formatMoney(remainder.amount)}</span> sem detalhe
               </p>
             )}
-            {isCredit && (
-              <InvoiceTotalDialog
-                card={card}
-                month={month}
-                trigger={
-                  <Button variant="outline" size="sm" className="mt-4">
-                    <Receipt /> {remainder ? "Ajustar total da fatura" : "Informar total da fatura"}
-                  </Button>
-                }
-              />
+            {invoice && invoice.paid > 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                <span className="tabular">{formatMoney(invoice.paid)}</span> pago
+                {invoice.remaining > 0 && (
+                  <>
+                    {" "}
+                    · falta <span className="tabular">{formatMoney(invoice.remaining)}</span>
+                  </>
+                )}
+              </p>
             )}
-            {limitUsage !== null && card.creditLimit && (
+            {invoice && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(invoice.total > 0 || invoice.payments.length > 0) && (
+                  <InvoicePaymentDialog
+                    card={card}
+                    invoice={invoice}
+                    trigger={
+                      <Button size="sm" variant={invoice.remaining > 0 ? "default" : "outline"}>
+                        <HandCoins /> {invoice.remaining > 0 ? "Pagar fatura" : "Ver pagamentos"}
+                      </Button>
+                    }
+                  />
+                )}
+                <InvoiceTotalDialog
+                  card={card}
+                  month={month}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <Receipt /> {remainder ? "Ajustar total da fatura" : "Informar total da fatura"}
+                    </Button>
+                  }
+                />
+              </div>
+            )}
+            {limitUsage !== null && creditLimit?.limit && (
               <div className="mt-4 max-w-sm">
                 <div
                   className="h-1.5 overflow-hidden rounded-full bg-muted"
                   role="img"
-                  aria-label={`${Math.round(limitUsage * 100)}% do limite`}
+                  aria-label={`${Math.round(limitUsage * 100)}% do limite em uso`}
                 >
                   <div className="h-full rounded-full bg-primary" style={{ width: `${limitUsage * 100}%` }} />
                 </div>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  {Math.round(limitUsage * 100)}% do limite de {formatMoney(card.creditLimit)}
+                  {Math.round(limitUsage * 100)}% do limite de {formatMoney(creditLimit.limit)} em uso ·{" "}
+                  <span className="tabular">{formatMoney(creditLimit.available!)}</span> disponível
                 </p>
               </div>
             )}
@@ -123,4 +157,13 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
       </div>
     </>
   );
+}
+
+// Situação da fatura pelo que falta pagar e pelo vencimento
+function invoiceStatus(invoice: Invoice, todayDate: string) {
+  if (invoice.total <= 0) return null;
+  if (invoice.remaining === 0) return { label: "Paga", variant: "secondary" } as const;
+  if (invoice.dueDate < todayDate) return { label: "Vencida", variant: "destructive" } as const;
+  if (invoice.paid > 0) return { label: "Paga em parte", variant: "outline" } as const;
+  return { label: "Em aberto", variant: "outline" } as const;
 }

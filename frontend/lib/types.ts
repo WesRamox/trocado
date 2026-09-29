@@ -60,12 +60,30 @@ export interface Summary {
   balance: number;
 }
 
+export interface InvoicePayment {
+  id: number;
+  amount: number;
+  date: string;
+}
+
 export interface Invoice {
   cardId: number;
   month: string;
   dueDate: string;
   total: number;
+  paid: number;
+  // O que falta pagar (nunca negativo)
+  remaining: number;
+  payments: InvoicePayment[];
   transactions: Transaction[];
+}
+
+// Limite do cartão de crédito. Em uso: tudo que ainda não foi pago, inclusive parcelas futuras
+export interface CreditLimit {
+  cardId: number;
+  limit: number | null;
+  used: number;
+  available: number | null;
 }
 
 export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";

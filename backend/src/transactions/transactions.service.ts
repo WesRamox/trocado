@@ -11,10 +11,15 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
+import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { toTransactionResponse } from './transactions.mapper.js';
 
 const MAX_HISTORY_MONTHS = 24;
+
+// Soma de uma fatura: entradas no cartão (estornos) abatem o total
+const signedTotalCents = (items: Pick<Transaction, 'type' | 'amountInCents'>[]) =>
+  items.reduce((sum, t) => sum + (t.type === TransactionType.OUTFLOW ? t.amountInCents : -t.amountInCents), 0);
 
 @Injectable()
 export class TransactionsService {
@@ -120,22 +125,86 @@ export class TransactionsService {
     const card = await this.creditCardOf(userId, cardId);
     const { start, end } = monthRange(month);
 
-    const transactions = await this.prisma.transaction.findMany({
-      where: { userId, cardId, invoiceDueDate: { gte: start, lt: end } },
-      orderBy: [{ date: 'asc' }, { id: 'asc' }],
-    });
-    // Entradas no cartão (estornos) abatem o total
-    const totalCents = transactions.reduce(
-      (sum, t) => sum + (t.type === TransactionType.OUTFLOW ? t.amountInCents : -t.amountInCents),
-      0,
-    );
+    const where = { userId, cardId, invoiceDueDate: { gte: start, lt: end } };
+    const [transactions, payments] = await Promise.all([
+      this.prisma.transaction.findMany({ where, orderBy: [{ date: 'asc' }, { id: 'asc' }] }),
+      this.prisma.invoicePayment.findMany({ where, orderBy: [{ date: 'asc' }, { id: 'asc' }] }),
+    ]);
+    const totalCents = signedTotalCents(transactions);
+    const paidCents = payments.reduce((sum, p) => sum + p.amountInCents, 0);
 
     return {
       cardId,
       month,
       dueDate: formatDate(transactions[0]?.invoiceDueDate ?? withDay(start, card.dueDay!)),
       total: toReais(totalCents),
+      paid: toReais(paidCents),
+      // Pago a mais (ex.: compra excluída depois do pagamento) não vira saldo negativo
+      remaining: toReais(Math.max(totalCents - paidCents, 0)),
+      payments: payments.map(({ id, amountInCents, date }) => ({
+        id,
+        amount: toReais(amountInCents),
+        date: formatDate(date),
+      })),
       transactions: transactions.map(toTransactionResponse),
+    };
+  }
+
+  // Registra um pagamento (total ou parcial) da fatura; devolve a fatura atualizada.
+  // Não é um gasto novo: só libera o limite e abate o que falta pagar.
+  async payInvoice(userId: number, cardId: number, month: string, dto: PayInvoiceDto) {
+    const invoice = await this.invoice(userId, cardId, month);
+    const amountCents = toCents(dto.amount);
+    const remainingCents = toCents(invoice.remaining);
+    if (remainingCents === 0) {
+      throw new BadRequestException('Esta fatura já está paga');
+    }
+    if (amountCents > remainingCents) {
+      throw new BadRequestException(`O pagamento não pode passar dos ${formatCents(remainingCents)} que faltam`);
+    }
+
+    await this.prisma.invoicePayment.create({
+      data: {
+        userId,
+        cardId,
+        invoiceDueDate: parseDate(invoice.dueDate),
+        amountInCents: amountCents,
+        date: parseDate(dto.date),
+      },
+    });
+    return this.invoice(userId, cardId, month);
+  }
+
+  async removeInvoicePayment(userId: number, cardId: number, month: string, paymentId: number) {
+    await this.creditCardOf(userId, cardId);
+    const { start, end } = monthRange(month);
+    const { count } = await this.prisma.invoicePayment.deleteMany({
+      where: { id: paymentId, userId, cardId, invoiceDueDate: { gte: start, lt: end } },
+    });
+    if (count === 0) {
+      throw new NotFoundException('Pagamento não encontrado');
+    }
+  }
+
+  // Limite em uso: uma compra ocupa o limite pelo valor total (todas as parcelas, inclusive as
+  // de faturas futuras) até as faturas serem pagas.
+  async creditLimit(userId: number, cardId: number) {
+    const card = await this.creditCardOf(userId, cardId);
+    const [transactions, payments] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { userId, cardId, invoiceDueDate: { not: null } },
+        select: { type: true, amountInCents: true },
+      }),
+      this.prisma.invoicePayment.aggregate({ where: { userId, cardId }, _sum: { amountInCents: true } }),
+    ]);
+    const usedCents = Math.max(signedTotalCents(transactions) - (payments._sum.amountInCents ?? 0), 0);
+    const limitCents = card.creditLimitInCents;
+
+    return {
+      cardId,
+      limit: limitCents === null ? null : toReais(limitCents),
+      used: toReais(usedCents),
+      available: limitCents === null ? null : toReais(limitCents - usedCents),
     };
   }
 
@@ -158,9 +227,7 @@ export class TransactionsService {
         where: { userId, cardId, invoiceDueDate: { gte: start, lt: end } },
       });
       const remainder = items.find((t) => t.invoiceRemainder);
-      const detailedCents = items
-        .filter((t) => !t.invoiceRemainder)
-        .reduce((sum, t) => sum + (t.type === TransactionType.OUTFLOW ? t.amountInCents : -t.amountInCents), 0);
+      const detailedCents = signedTotalCents(items.filter((t) => !t.invoiceRemainder));
       const remainderCents = toCents(total) - detailedCents;
 
       if (remainderCents < 0) {
