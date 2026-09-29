@@ -16,6 +16,7 @@ import type { JwtPayload } from '../auth/auth.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery, MonthQuery, MonthRangeQuery } from './dto/list-transactions.query.js';
+import { RecurrenceMatchesQuery } from './dto/recurrence-matches.query.js';
 import { SplitTransactionDto } from './dto/split-transaction.dto.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { TransactionsService } from './transactions.service.js';
@@ -50,6 +51,13 @@ export class TransactionsController {
   @Get('cashflow')
   cashflow(@CurrentUser() user: JwtPayload, @Query() query: MonthQuery) {
     return this.transactionsService.cashflow(user.sub, query.month);
+  }
+
+  // GET /transactions/recurrence-matches?date=2026-10-05&amount=110&type=INFLOW
+  // -> recorrências que um lançamento novo talvez repita (para avisar antes de criar)
+  @Get('recurrence-matches')
+  recurrenceMatches(@CurrentUser() user: JwtPayload, @Query() query: RecurrenceMatchesQuery) {
+    return this.transactionsService.recurrenceMatches(user.sub, query);
   }
 
   @Get('summary')

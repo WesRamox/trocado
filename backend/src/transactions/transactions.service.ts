@@ -4,6 +4,7 @@ import { CardsService } from '../cards/cards.service.js';
 import { invoiceDueDateFor, invoiceLastPurchaseDate } from '../cards/invoice.js';
 import { CategoriesService } from '../categories/categories.service.js';
 import {
+  addDays,
   addMonths,
   currentMonth,
   formatDate,
@@ -22,12 +23,16 @@ import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
+import { RecurrenceMatchesQuery } from './dto/recurrence-matches.query.js';
 import { SplitTransactionDto } from './dto/split-transaction.dto.js';
 import { forecastFor, type ForecastEntry } from './forecast.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { toTransactionResponse } from './transactions.mapper.js';
 
 const MAX_HISTORY_MONTHS = 24;
+
+// Distância máxima (em dias) entre um lançamento novo e a ocorrência de recorrência que ele talvez repita
+const RECURRENCE_MATCH_DAYS = 5;
 
 // O centavo é só para as somas internas; a resposta tem o valor em reais, como os lançamentos
 const toForecastResponse = ({ amountInCents: _amountInCents, ...entry }: ForecastEntry) => entry;
@@ -229,6 +234,45 @@ export class TransactionsService {
       invoicesTotal: toReais(invoicesCents),
       otherOutflow: toReais(otherOutflowCents + projectedOtherOutflowCents),
     };
+  }
+
+  // Recorrências que um lançamento novo talvez repita: mesmo tipo e valor, até
+  // RECURRENCE_MATCH_DAYS dias de distância, já lançadas pela recorrência ou ainda previstas.
+  // Evita contar em dobro algo que a recorrência já lança sozinha.
+  async recurrenceMatches(userId: number, { date, amount, type }: RecurrenceMatchesQuery) {
+    const day = parseDate(date);
+    const start = addDays(day, -RECURRENCE_MATCH_DAYS);
+    const end = addDays(day, RECURRENCE_MATCH_DAYS + 1);
+    const amountInCents = toCents(amount);
+
+    const [generated, recurrences] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { userId, type, amountInCents, recurrenceId: { not: null }, date: { gte: start, lt: end } },
+        include: { recurrence: { select: { name: true } } },
+        orderBy: { date: 'asc' },
+      }),
+      this.recurrencesOf(userId),
+    ]);
+    const projected = forecastFor(recurrences, { start, end, by: 'date' }).filter(
+      (entry) => entry.type === type && entry.amountInCents === amountInCents,
+    );
+
+    return [
+      ...generated.map((t) => ({
+        recurrenceId: t.recurrenceId!,
+        name: t.recurrence?.name ?? t.name,
+        date: formatDate(t.date),
+        amount: toReais(t.amountInCents),
+        projected: false,
+      })),
+      ...projected.map((entry) => ({
+        recurrenceId: entry.recurrenceId,
+        name: entry.name,
+        date: entry.date,
+        amount: entry.amount,
+        projected: true,
+      })),
+    ];
   }
 
   private recurrencesOf(userId: number, cardId?: number) {

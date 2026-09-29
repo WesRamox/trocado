@@ -97,6 +97,16 @@ export interface ProjectedTransaction extends Omit<Transaction, "id"> {
   projected: true;
 }
 
+// Ocorrência de recorrência que um lançamento novo talvez repita (mesmo tipo e valor, data próxima)
+export interface RecurrenceMatch {
+  recurrenceId: number;
+  name: string;
+  date: string;
+  amount: number;
+  // true: ainda prevista; false: a recorrência já lançou
+  projected: boolean;
+}
+
 // Linha de extrato: lançamento feito ou previsto
 export type Entry = Transaction | ProjectedTransaction;
 
