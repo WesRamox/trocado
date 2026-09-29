@@ -5,10 +5,14 @@ import { formatMoney, formatPercent } from "@/lib/format";
 import type { Slice } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 
+// Coordenada com 3 casas: seno e cosseno podem variar na última casa entre o Node e o navegador,
+// e o SVG renderizado no servidor não bateria com o do cliente (erro de hidratação)
+const round = (value: number) => Math.round(value * 1000) / 1000;
+
 // Anel de uma fatia, em ângulos a partir das 12h no sentido horário (viewBox 100x100)
 function slicePath(start: number, end: number, inner = 32, outer = 50) {
   const point = (radius: number, angle: number) =>
-    `${50 + radius * Math.sin(angle)} ${50 - radius * Math.cos(angle)}`;
+    `${round(50 + radius * Math.sin(angle))} ${round(50 - radius * Math.cos(angle))}`;
   const large = end - start > Math.PI ? 1 : 0;
   return [
     `M ${point(outer, start)}`,
