@@ -281,6 +281,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                       </Link>
                     </li>
                   ))}
+                  <li className="flex items-center justify-between gap-3 bg-muted/40 px-4 py-3">
+                    <span className="text-sm font-medium">Total em cartões</span>
+                    <span className="tabular text-sm font-semibold">
+                      {formatMoney(invoices.reduce((sum, invoice) => sum + invoice.total, 0))}
+                    </span>
+                  </li>
                 </ul>
               </section>
             )}
