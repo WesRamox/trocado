@@ -14,19 +14,42 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { groupByChargeDay } from "@/lib/borrowed";
 import { callBackend } from "@/lib/call-backend";
-import { formatDate, formatMoney, monthName, parseMonth } from "@/lib/format";
+import { formatDate, formatMoney, monthName, parseMonth, shiftMonth } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
 import type { Borrowed, BorrowedPerson, Card, Category, Person, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Emprestados" };
 
+// Até quantos meses à frente procurar o próximo mês com algo a receber
+const MAX_MONTHS_AHEAD = 12;
+
+const monthOf = async (month: string) => ({
+  month,
+  borrowed: await callBackend<Borrowed>("/borrowed", { query: { month } }),
+});
+
+// A partir do mês atual, o primeiro mês com algo a receber (pula os já recebidos e os vazios).
+// Sem nada pendente pela frente, fica no mês atual.
+async function firstMonthToCharge(fromMonth: string) {
+  const first = await monthOf(fromMonth);
+  if (first.borrowed.pending !== 0 || first.borrowed.open === 0) return first;
+  for (let i = 1; i <= MAX_MONTHS_AHEAD; i++) {
+    const next = await monthOf(shiftMonth(fromMonth, i));
+    if (next.borrowed.pending !== 0) return next;
+  }
+  return first;
+}
+
 export default async function BorrowedPage({ searchParams }: PageProps<"/emprestados">) {
   const { timezone } = await getProfile();
-  const month = parseMonth((await searchParams).mes, timezone);
+  const requestedMonth = (await searchParams).mes;
 
-  const [borrowed, people, cards, categories] = await Promise.all([
-    callBackend<Borrowed>("/borrowed", { query: { month } }),
+  // Sem mês na URL, abre no primeiro mês com algo a receber (pula os já recebidos)
+  const [{ month, borrowed }, people, cards, categories] = await Promise.all([
+    requestedMonth
+      ? monthOf(parseMonth(requestedMonth, timezone))
+      : firstMonthToCharge(parseMonth(undefined, timezone)),
     callBackend<Person[]>("/people"),
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
