@@ -14,6 +14,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 - **Recorrências:** aluguel, assinaturas e salário são cadastrados uma vez e viram lançamentos sozinhos na data. Dá para editar, encerrar ou excluir sem mexer no histórico. As próximas ocorrências já entram como **previstas** no saldo, nos indicadores, nos orçamentos e nas faturas dos meses seguintes, sem esperar o dia chegar (o limite do cartão só conta o que já passou).
 - **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão. Quem não quer lançar cada compra pode informar só o total da fatura: o que já está lançado nela é descontado e a diferença entra como "sem detalhe". Faturas podem ser pagas no todo ou em parte; o limite em uso considera tudo que ainda não foi pago, inclusive as parcelas das próximas faturas, e é liberado conforme os pagamentos.
 - **Emprestados:** compras que outras pessoas (pai, mãe, namorada...) fizeram nos seus cartões. Elas continuam na fatura e no limite, mas saem dos seus gastos. A tela mostra quanto cada pessoa te deve no mês, pelo vencimento das faturas, e quanto ainda está em aberto contando as próximas parcelas; quando ela paga, é só marcar como recebido. Uma compra também pode ser dividida (ex.: metade sua, metade da namorada): a parte da pessoa vira um lançamento dela em todas as parcelas, e a divisão pode ser desfeita.
+- **Empréstimos:** empréstimos com o banco, pelo total a pagar, número de parcelas e data da 1ª. As parcelas viram lançamentos mensais; a tela mostra o saldo devedor, o progresso e, informando o valor recebido, os juros e a taxa ao mês.
 - **Categorias** de entrada e de saída, com cores.
 - **Orçamentos:** um limite mensal opcional por categoria de saída. A visão geral mostra quanto de cada um já foi usado, com alerta a partir de 80% e aviso quando estoura.
 - **Visão geral do mês:**
@@ -39,6 +40,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 │   │   ├── auth/             cadastro, login e guard JWT (rotas protegidas por padrão)
 │   │   ├── cards/            cartões e cálculo de fatura
 │   │   ├── categories/
+│   │   ├── loans/            empréstimos bancários (parcelas, saldo devedor, juros)
 │   │   ├── people/           pessoas que usam seus cartões e o que cada uma deve (emprestados)
 │   │   ├── transactions/     lançamentos, parcelas, resumo, histórico e faturas
 │   │   ├── recurrences/      regras de recorrência e geração dos lançamentos

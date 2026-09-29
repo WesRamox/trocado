@@ -38,7 +38,8 @@ describe('invoiceLastPurchaseDate', () => {
     expect(formatDate(invoiceLastPurchaseDate(parseDate('2026-10-05'), 25))).toBe('2026-09-24');
   });
 
-  it('é sempre uma compra que cai exatamente naquela fatura', () => {
+  // ~1 milhão de verificações: leva alguns segundos e passa do limite padrão (5s) com a máquina ocupada
+  it('é sempre uma compra que cai exatamente naquela fatura', { timeout: 30_000 }, () => {
     // Todas as combinações de fechamento e vencimento. Os vencimentos testados são os que
     // existem de fato (alguma compra cai neles): com fechamento 28 e vencimento 29, por
     // exemplo, fevereiro não tem fatura, porque os dois dias viram 28/02.

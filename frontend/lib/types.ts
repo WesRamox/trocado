@@ -52,6 +52,8 @@ export interface Transaction {
   reimbursedAt: string | null;
   // Parte de uma compra dividida: id da parcela original
   splitOfId: number | null;
+  // Parcela de um empréstimo bancário
+  loanId: number | null;
   installmentNumber: number | null;
   installmentCount: number | null;
   installmentGroupId: string | null;
@@ -154,4 +156,28 @@ export interface Recurrence {
   lastGeneratedDate: string | null;
   cardId: number | null;
   categoryId: number | null;
+}
+
+// Empréstimo bancário; as parcelas são lançamentos mensais
+export interface Loan {
+  id: number;
+  name: string;
+  categoryId: number | null;
+  // Quanto você paga no total (com juros)
+  total: number;
+  installments: number;
+  installmentAmount: number;
+  firstDueDate: string;
+  lastDueDate: string;
+  // Quanto caiu na conta; sem ele, não há juros nem taxa
+  received: number | null;
+  interest: number | null;
+  // Fração ao mês (0.029 = 2,9%)
+  monthlyRate: number | null;
+  // Parcelas que já venceram (debitadas no vencimento)
+  paidCount: number;
+  paid: number;
+  // Saldo devedor: parcelas que ainda vão vencer
+  remaining: number;
+  nextDueDate: string | null;
 }
