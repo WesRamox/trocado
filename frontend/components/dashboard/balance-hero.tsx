@@ -1,5 +1,5 @@
 import { Sparkles, TriangleAlert, Trophy, type LucideIcon } from "lucide-react";
-import { formatMoney, formatPercent, monthName } from "@/lib/format";
+import { formatMoney, formatPercent, monthName, shiftMonth } from "@/lib/format";
 import { SAVINGS_GOAL } from "@/lib/metrics";
 import { TONES, type Tone } from "@/lib/tones";
 import type { Cashflow, Summary } from "@/lib/types";
@@ -12,6 +12,7 @@ type Totals = Pick<Summary, "inflow" | "outflow" | "balance" | "projectedInflow"
 // dos indicadores e gráficos da visão geral.
 export function BalanceHero({ cashflow, summary }: { cashflow: Cashflow; summary: Summary }) {
   const { inflow, outflow, balance } = cashflow;
+  const name = monthName(cashflow.month);
   const total = inflow + outflow;
   const segments = [
     { key: "inflow", label: "Entradas", value: inflow, className: "bg-inflow" },
@@ -21,7 +22,7 @@ export function BalanceHero({ cashflow, summary }: { cashflow: Cashflow; summary
   return (
     <section aria-labelledby="balance-title" className="border-b pb-8">
       <h2 id="balance-title" className="text-sm text-muted-foreground">
-        Saldo de {monthName(cashflow.month)}
+        Saldo de {name} <span className="text-xs">· o que sobra na conta</span>
       </h2>
       <p className="tabular mt-1 text-5xl font-semibold tracking-tight sm:text-6xl">
         {balance < 0 && "− "}
@@ -77,15 +78,20 @@ export function BalanceHero({ cashflow, summary }: { cashflow: Cashflow; summary
         </p>
       </div>
 
-      <p className="mt-4 max-w-xl rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-        Pela data das compras, o saldo do mês é de{" "}
-        <span className="tabular font-medium text-foreground">
-          {summary.balance < 0 && "− "}
-          {formatMoney(Math.abs(summary.balance))}
-        </span>{" "}
-        (entradas {formatMoney(summary.inflow)}, saídas {formatMoney(summary.outflow)}). É a base dos indicadores e
-        gráficos abaixo.
-      </p>
+      <div className="mt-4 max-w-xl rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Gastos de {name} vs. entradas: </span>
+          <span className="tabular font-medium text-foreground">
+            {summary.balance < 0 && "− "}
+            {formatMoney(Math.abs(summary.balance))}
+          </span>
+        </p>
+        <p className="mt-0.5">
+          O que você consumiu em {name} ({formatMoney(summary.outflow)}), mesmo o que só vai ser pago na fatura de{" "}
+          {monthName(shiftMonth(summary.month, 1))}, contra as entradas do mês ({formatMoney(summary.inflow)}). É a
+          base dos indicadores e gráficos abaixo.
+        </p>
+      </div>
     </section>
   );
 }
