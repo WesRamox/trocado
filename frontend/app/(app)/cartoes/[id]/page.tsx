@@ -12,7 +12,7 @@ import { TransactionList } from "@/components/transactions/transaction-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
-import { formatDate, formatMoney, monthName, parseMonth, today } from "@/lib/format";
+import { formatDate, formatMoney, monthName, parseMonth, shiftMonth, today } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
 import type {
   Card,
@@ -30,20 +30,26 @@ export const metadata: Metadata = { title: "Cartão" };
 export default async function CardPage({ params, searchParams }: PageProps<"/cartoes/[id]">) {
   const { id } = await params;
   const { timezone } = await getProfile();
-  const month = parseMonth((await searchParams).mes, timezone);
+  const requestedMonth = (await searchParams).mes;
 
   const card = await callBackend<Card>(`/cards/${Number(id)}`).catch((error) => {
     if (error instanceof ApiError && (error.status === 404 || error.status === 400)) notFound();
     throw error;
   });
   const isCredit = card.type === "CREDIT";
+  // Sem mês na URL, o cartão de crédito abre na fatura em aberto, pulando as já pagas
+  const opened =
+    isCredit && !requestedMonth
+      ? await openInvoice(card.id, parseMonth(undefined, timezone), today(timezone))
+      : null;
+  const month = opened?.month ?? parseMonth(requestedMonth, timezone);
 
   const [cards, categories, people, invoice, debitTransactions, debitForecast, creditLimit] = await Promise.all([
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
     callBackend<Person[]>("/people"),
     // Crédito: fatura que vence no mês. Débito: compras do mês.
-    isCredit ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`) : null,
+    isCredit ? (opened?.invoice ?? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`)) : null,
     isCredit ? null : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }),
     isCredit
       ? null
@@ -187,6 +193,21 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
 // Saídas somam, entradas (estornos) abatem
 const signedSum = (entries: Entry[]) =>
   entries.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0);
+
+// Até quantos meses à frente procurar a fatura em aberto
+const MAX_PAID_AHEAD = 12;
+
+// A partir do mês atual, a primeira fatura com algo a pagar. Pula as já pagas e as que
+// venceram sem nada a pagar (ex.: fatura vazia de um cartão pouco usado).
+async function openInvoice(cardId: number, fromMonth: string, todayDate: string) {
+  let month = fromMonth;
+  for (let i = 0; ; i++) {
+    const invoice = await callBackend<Invoice>(`/cards/${cardId}/invoices/${month}`);
+    const settled = invoice.remaining === 0 && (invoice.paid > 0 || invoice.dueDate < todayDate);
+    if (!settled || i === MAX_PAID_AHEAD) return { month, invoice };
+    month = shiftMonth(month, 1);
+  }
+}
 
 // Situação da fatura pelo que falta pagar e pelo vencimento
 function invoiceStatus(invoice: Invoice, todayDate: string) {
