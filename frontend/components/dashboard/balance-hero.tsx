@@ -2,12 +2,16 @@ import { Sparkles, TriangleAlert, Trophy, type LucideIcon } from "lucide-react";
 import { formatMoney, formatPercent, monthName } from "@/lib/format";
 import { SAVINGS_GOAL } from "@/lib/metrics";
 import { TONES, type Tone } from "@/lib/tones";
-import type { Summary } from "@/lib/types";
+import type { Cashflow, Summary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// Saldo do mês em destaque, com a proporção entre entradas e saídas
-export function BalanceHero({ summary }: { summary: Summary }) {
-  const { inflow, outflow, balance } = summary;
+type Totals = Pick<Summary, "inflow" | "outflow" | "balance" | "projectedInflow" | "projectedOutflow">;
+
+// Saldo do mês em destaque (fluxo de caixa: faturas pelo vencimento, reembolsos como entrada),
+// com a proporção entre entradas e saídas. Embaixo, o saldo pela data das compras, que é a base
+// dos indicadores e gráficos da visão geral.
+export function BalanceHero({ cashflow, summary }: { cashflow: Cashflow; summary: Summary }) {
+  const { inflow, outflow, balance } = cashflow;
   const total = inflow + outflow;
   const segments = [
     { key: "inflow", label: "Entradas", value: inflow, className: "bg-inflow" },
@@ -17,13 +21,13 @@ export function BalanceHero({ summary }: { summary: Summary }) {
   return (
     <section aria-labelledby="balance-title" className="border-b pb-8">
       <h2 id="balance-title" className="text-sm text-muted-foreground">
-        Saldo de {monthName(summary.month)}
+        Saldo de {monthName(cashflow.month)}
       </h2>
       <p className="tabular mt-1 text-5xl font-semibold tracking-tight sm:text-6xl">
         {balance < 0 && "− "}
         {formatMoney(Math.abs(balance))}
       </p>
-      <MonthMood summary={summary} />
+      <MonthMood totals={cashflow} />
 
       {total > 0 && (
         <div className="mt-6 flex h-2.5 max-w-xl gap-0.5" role="img" aria-label={`Entradas ${formatMoney(inflow)}, saídas ${formatMoney(outflow)}`}>
@@ -44,7 +48,7 @@ export function BalanceHero({ summary }: { summary: Summary }) {
           <dt className="text-muted-foreground">Entradas</dt>
           <dd className="tabular font-medium">
             {formatMoney(inflow)}
-            <ProjectedNote value={summary.projectedInflow} />
+            <ProjectedNote value={cashflow.projectedInflow} />
           </dd>
         </div>
         <div className="flex items-center gap-2">
@@ -52,10 +56,36 @@ export function BalanceHero({ summary }: { summary: Summary }) {
           <dt className="text-muted-foreground">Saídas</dt>
           <dd className="tabular font-medium">
             {formatMoney(outflow)}
-            <ProjectedNote value={summary.projectedOutflow} />
+            <ProjectedNote value={cashflow.projectedOutflow} />
           </dd>
         </div>
       </dl>
+
+      <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
+        <p>
+          Entram {formatMoney(cashflow.income)} de salário e outras entradas
+          {cashflow.reimbursements !== 0 && ` + ${formatMoney(cashflow.reimbursements)} de reembolsos (Emprestados)`}.
+        </p>
+        <p>
+          Saem{" "}
+          {cashflow.invoices.length > 0
+            ? `${formatMoney(cashflow.invoicesTotal)} em faturas (${cashflow.invoices
+                .map((invoice) => `${invoice.name} ${formatMoney(invoice.total)}`)
+                .join(", ")})`
+            : "nenhuma fatura"}
+          {cashflow.otherOutflow !== 0 && ` + ${formatMoney(cashflow.otherOutflow)} em contas fora do cartão`}.
+        </p>
+      </div>
+
+      <p className="mt-4 max-w-xl rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+        Pela data das compras, o saldo do mês é de{" "}
+        <span className="tabular font-medium text-foreground">
+          {summary.balance < 0 && "− "}
+          {formatMoney(Math.abs(summary.balance))}
+        </span>{" "}
+        (entradas {formatMoney(summary.inflow)}, saídas {formatMoney(summary.outflow)}). É a base dos indicadores e
+        gráficos abaixo.
+      </p>
     </section>
   );
 }
@@ -67,11 +97,11 @@ function ProjectedNote({ value }: { value: number }) {
 }
 
 // Um recado sobre o mês: comemora a meta batida, o mês no azul, ou avisa quando fechou no vermelho
-function MonthMood({ summary }: { summary: Summary }) {
-  const { inflow, outflow, balance } = summary;
+function MonthMood({ totals }: { totals: Totals }) {
+  const { inflow, outflow, balance } = totals;
   if (inflow === 0 && outflow === 0) return null;
   // Com previsão, o mês ainda não fechou: o recado fala do que deve acontecer
-  const forecasting = summary.projectedInflow > 0 || summary.projectedOutflow > 0;
+  const forecasting = totals.projectedInflow > 0 || totals.projectedOutflow > 0;
 
   let mood: { icon: LucideIcon; tone: Tone; text: string };
   if (inflow > 0 && balance / inflow >= SAVINGS_GOAL) {

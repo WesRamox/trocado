@@ -46,6 +46,12 @@ export class TransactionsController {
     return this.transactionsService.forecast(user.sub, query);
   }
 
+  // GET /transactions/cashflow?month=2026-10 -> o que entra e sai da conta no mês (faturas pelo vencimento)
+  @Get('cashflow')
+  cashflow(@CurrentUser() user: JwtPayload, @Query() query: MonthQuery) {
+    return this.transactionsService.cashflow(user.sub, query.month);
+  }
+
   @Get('summary')
   summary(@CurrentUser() user: JwtPayload, @Query() query: MonthQuery) {
     return this.transactionsService.summary(user.sub, query.month);

@@ -38,7 +38,7 @@ import {
 } from "@/lib/metrics";
 import { cardColor } from "@/lib/palette";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, Entry, Invoice, Person, ProjectedTransaction, Summary, Transaction } from "@/lib/types";
+import type { Card, Cashflow, Category, Entry, Invoice, Person, ProjectedTransaction, Summary, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Visão geral" };
 
@@ -54,6 +54,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const cardsRequest = callBackend<Card[]>("/cards");
   const [
     history,
+    cashflow,
     allTransactions,
     allPreviousTransactions,
     forecast,
@@ -64,6 +65,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     invoices,
   ] = await Promise.all([
     callBackend<Summary[]>("/transactions/summary/history", { query: { from: historyMonths[0], to: month } }),
+    callBackend<Cashflow>("/transactions/cashflow", { query: { month } }),
     callBackend<Transaction[]>("/transactions", { query: { month } }),
     callBackend<Transaction[]>("/transactions", { query: { month: previousMonth } }),
     // Recorrências que ainda vão acontecer: entram nos indicadores como previstas
@@ -121,7 +123,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         {newButton}
       </div>
 
-      <BalanceHero summary={summary} />
+      <BalanceHero cashflow={cashflow} summary={summary} />
 
       {entries.length === 0 ? (
         <EmptyState
