@@ -68,6 +68,8 @@ model Transaction {
   personId         Int?            @map("person_id")
   // Dia em que a pessoa reembolsou esta compra (ou parcela)
   reimbursedAt     DateTime?       @map("reimbursed_at") @db.Date
+  // Parte de uma compra dividida: aponta para a parcela original, de onde o valor saiu
+  splitOfId        Int?            @map("split_of_id")
   name             String
   description      String?
   amountInCents    Int             @map("amount_in_cents")
@@ -86,14 +88,17 @@ model Transaction {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  card       Card?       @relation(fields: [cardId], references: [id], onDelete: SetNull)
-  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  recurrence Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
-  person     Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card       Card?         @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recurrence Recurrence?   @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  person     Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
+  splitOf    Transaction?  @relation("SplitParts", fields: [splitOfId], references: [id], onDelete: Cascade)
+  splitParts Transaction[] @relation("SplitParts")
 
   @@index([userId, date])
   @@index([personId])
+  @@index([splitOfId])
   @@index([cardId, invoiceDueDate])
   @@index([categoryId])
   @@index([recurrenceId])

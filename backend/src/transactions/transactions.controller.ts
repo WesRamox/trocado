@@ -16,6 +16,7 @@ import type { JwtPayload } from '../auth/auth.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery, MonthQuery, MonthRangeQuery } from './dto/list-transactions.query.js';
+import { SplitTransactionDto } from './dto/split-transaction.dto.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { TransactionsService } from './transactions.service.js';
 
@@ -66,5 +67,21 @@ export class TransactionsController {
     @Query('allInstallments', new ParseBoolPipe({ optional: true })) allInstallments?: boolean,
   ) {
     return this.transactionsService.remove(user.sub, id, allInstallments);
+  }
+
+  // Divide a compra (todas as parcelas) com outra pessoa; devolve a parte dela
+  @Post(':id/split')
+  split(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SplitTransactionDto,
+  ) {
+    return this.transactionsService.split(user.sub, id, dto);
+  }
+
+  // Desfaz a divisão; :id é a parte da pessoa. Devolve o lançamento original
+  @Delete(':id/split')
+  unsplit(@CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.transactionsService.unsplit(user.sub, id);
   }
 }

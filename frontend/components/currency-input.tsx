@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 
@@ -12,13 +12,17 @@ export function CurrencyInput({
   id,
   name,
   defaultValue,
+  onValueChange,
 }: {
   id: string;
   name: string;
   defaultValue?: number | null;
+  // Avisa o valor em reais a cada mudança (para mostrar cálculos ao vivo)
+  onValueChange?: (value: number) => void;
 }) {
   const [cents, setCents] = useState(defaultValue ? Math.round(defaultValue * 100) : 0);
   const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => onValueChange?.(cents / 100), [cents, onValueChange]);
 
   // O cursor fica sempre no fim: assim o dígito digitado é sempre o último,
   // mesmo depois de o valor ser reformatado ("R$ 0,02" -> "R$ 0,23")

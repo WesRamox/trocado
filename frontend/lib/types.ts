@@ -50,6 +50,8 @@ export interface Transaction {
   personId: number | null;
   // Dia em que a pessoa reembolsou
   reimbursedAt: string | null;
+  // Parte de uma compra dividida: id da parcela original
+  splitOfId: number | null;
   installmentNumber: number | null;
   installmentCount: number | null;
   installmentGroupId: string | null;

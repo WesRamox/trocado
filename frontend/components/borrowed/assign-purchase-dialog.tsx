@@ -4,6 +4,7 @@ import { Link2, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FormError } from "@/components/field";
 import { PersonAvatar } from "@/components/people/person-avatar";
+import { halfOf } from "@/components/transactions/split-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -46,7 +47,7 @@ export function AssignPurchaseDialog({
         <DialogHeader>
           <DialogTitle>Vincular compra lançada</DialogTitle>
           <DialogDescription>
-            Escolha de quem é e toque na compra. Se for parcelada, todas as parcelas passam a ser da pessoa.
+            Escolha de quem é e toque na compra. Se for parcelada, vale para todas as parcelas.
           </DialogDescription>
         </DialogHeader>
         {open && <AssignPurchase people={people} cards={cards} month={month} />}
@@ -61,6 +62,8 @@ function AssignPurchase({ people, cards, month }: { people: Person[]; cards: Car
   const [purchases, setPurchases] = useState<Transaction[]>();
   const [loadError, setLoadError] = useState<string>();
   const [assigned, setAssigned] = useState<Set<number>>(new Set());
+  // Metade: a compra é dividida, metade sua e metade da pessoa
+  const [half, setHalf] = useState(false);
   const { run, pending } = useRequest();
   const cardById = new Map(cards.map((card) => [card.id, card]));
 
@@ -95,6 +98,13 @@ function AssignPurchase({ people, cards, month }: { people: Person[]; cards: Car
     person &&
     run(
       async () => {
+        if (half) {
+          await callBackend(`/transactions/${transaction.id}/split`, {
+            method: "POST",
+            body: { personId: person.id, amount: halfOf(transaction.amount) },
+          });
+          return `${transaction.name} dividida com ${person.name}`;
+        }
         await callBackend(`/transactions/${transaction.id}`, { method: "PATCH", body: { personId: person.id } });
         return `${transaction.name} agora é de ${person.name}`;
       },
@@ -118,6 +128,27 @@ function AssignPurchase({ people, cards, month }: { people: Person[]; cards: Car
           >
             <PersonAvatar person={p} size="xs" className="size-6" />
             {p.name}
+          </button>
+        ))}
+      </div>
+
+      <div role="radiogroup" aria-label="Quanto é da pessoa" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        {[
+          { value: false, label: "A compra inteira" },
+          { value: true, label: "Metade" },
+        ].map((option) => (
+          <button
+            key={option.label}
+            type="button"
+            role="radio"
+            aria-checked={half === option.value}
+            onClick={() => setHalf(option.value)}
+            className={cn(
+              "rounded-md py-1.5 text-sm text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+              half === option.value && "bg-card font-medium text-foreground shadow-xs",
+            )}
+          >
+            {option.label}
           </button>
         ))}
       </div>

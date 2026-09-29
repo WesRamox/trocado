@@ -22,6 +22,7 @@ import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
+import { SplitTransactionDto } from './dto/split-transaction.dto.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { toTransactionResponse } from './transactions.mapper.js';
 
@@ -340,6 +341,82 @@ export class TransactionsService {
       return;
     }
     await this.prisma.transaction.delete({ where: { id } });
+  }
+
+  // Divide uma compra com outra pessoa: cada parcela vira duas, a sua (o que sobra) e a da pessoa.
+  // A fatura e o limite não mudam; só a parte da pessoa sai dos seus gastos. Devolve a parte dela.
+  async split(userId: number, id: number, { personId, amount }: SplitTransactionDto) {
+    const current = await this.findEntity(userId, id);
+    if (current.type !== TransactionType.OUTFLOW || current.invoiceRemainder) {
+      throw new BadRequestException('Só dá para dividir uma compra');
+    }
+    if (current.splitOfId !== null) {
+      throw new BadRequestException('Este lançamento já é a parte de alguém: divida a compra original');
+    }
+    if (current.personId === personId) {
+      throw new BadRequestException('A compra já é desta pessoa');
+    }
+    await this.peopleService.findEntity(userId, personId);
+
+    const shareCents = toCents(amount);
+    const originals = await this.prisma.transaction.findMany({
+      where: current.installmentGroupId ? { userId, installmentGroupId: current.installmentGroupId } : { id },
+      orderBy: { id: 'asc' },
+    });
+    if (originals.some((t) => shareCents >= t.amountInCents)) {
+      throw new BadRequestException('A parte da pessoa precisa ser menor que o valor de cada parcela');
+    }
+
+    const groupId = current.installmentGroupId ? randomUUID() : null;
+    const parts = await this.prisma.$transaction(async (tx) => {
+      await tx.transaction.updateMany({
+        where: { id: { in: originals.map((t) => t.id) } },
+        data: { amountInCents: { decrement: shareCents } },
+      });
+      return tx.transaction.createManyAndReturn({
+        data: originals.map((t) => ({
+          userId,
+          cardId: t.cardId,
+          categoryId: t.categoryId,
+          personId,
+          name: t.name,
+          description: t.description,
+          amountInCents: shareCents,
+          type: t.type,
+          date: t.date,
+          invoiceDueDate: t.invoiceDueDate,
+          installmentNumber: t.installmentNumber,
+          installmentCount: t.installmentCount,
+          installmentGroupId: groupId,
+          splitOfId: t.id,
+        })),
+      });
+    });
+    await this.settlePastCharges(userId, { id: { in: parts.map((t) => t.id) } });
+    return this.findOne(userId, parts.find((t) => t.splitOfId === id)!.id);
+  }
+
+  // Desfaz a divisão a partir da parte da pessoa: o valor volta para as parcelas originais.
+  // Devolve o lançamento original.
+  async unsplit(userId: number, id: number) {
+    const part = await this.findEntity(userId, id);
+    if (part.splitOfId === null) {
+      throw new BadRequestException('Este lançamento não é a parte de uma compra dividida');
+    }
+    const parts = await this.prisma.transaction.findMany({
+      where: part.installmentGroupId ? { userId, installmentGroupId: part.installmentGroupId } : { id },
+    });
+
+    await this.prisma.$transaction(
+      parts.flatMap((t) => [
+        this.prisma.transaction.update({
+          where: { id: t.splitOfId! },
+          data: { amountInCents: { increment: t.amountInCents } },
+        }),
+        this.prisma.transaction.delete({ where: { id: t.id } }),
+      ]),
+    );
+    return this.findOne(userId, part.splitOfId);
   }
 
   private async creditCardOf(userId: number, cardId: number): Promise<Card> {

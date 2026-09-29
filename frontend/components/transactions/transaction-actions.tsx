@@ -1,8 +1,9 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Split, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { InvoiceTotalDialog } from "@/components/cards/invoice-total-dialog";
+import { SplitDialog } from "@/components/transactions/split-dialog";
 import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import {
   AlertDialog,
@@ -42,6 +43,21 @@ export function TransactionActions({
   // Valor "sem detalhe" de uma fatura: ajustado pelo total da fatura, não editado como lançamento
   const remainderCard = transaction.invoiceRemainder ? cards.find((card) => card.id === transaction.cardId) : undefined;
 
+  const [splitting, setSplitting] = useState(false);
+  const isSplitPart = transaction.splitOfId !== null;
+  // Só compras suas (ou de alguém) que ainda não são a parte de uma divisão
+  const canSplit =
+    transaction.type === "OUTFLOW" &&
+    !transaction.invoiceRemainder &&
+    !isSplitPart &&
+    people.some((person) => person.id !== transaction.personId);
+
+  const unsplit = () =>
+    run(async () => {
+      await callBackend(`/transactions/${transaction.id}/split`, { method: "DELETE" });
+      return "Divisão desfeita";
+    });
+
   const remove = (allInstallments: boolean) =>
     run(
       async () => {
@@ -63,6 +79,16 @@ export function TransactionActions({
           <DropdownMenuItem onSelect={() => setEditing(true)}>
             <Pencil /> {remainderCard ? "Ajustar total da fatura" : "Editar"}
           </DropdownMenuItem>
+          {canSplit && (
+            <DropdownMenuItem onSelect={() => setSplitting(true)}>
+              <Split /> Dividir com...
+            </DropdownMenuItem>
+          )}
+          {isSplitPart && (
+            <DropdownMenuItem disabled={pending} onSelect={unsplit}>
+              <Undo2 /> Desfazer divisão
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
             <Trash2 /> Excluir
           </DropdownMenuItem>
@@ -85,6 +111,10 @@ export function TransactionActions({
           open={editing}
           onOpenChange={setEditing}
         />
+      )}
+
+      {canSplit && (
+        <SplitDialog transaction={transaction} people={people} open={splitting} onOpenChange={setSplitting} />
       )}
 
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
