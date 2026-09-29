@@ -40,6 +40,12 @@ export class TransactionsController {
     return this.transactionsService.history(user.sub, query.from, query.to);
   }
 
+  // GET /transactions/forecast?month=2026-11 -> recorrências que ainda vão acontecer no mês
+  @Get('forecast')
+  forecast(@CurrentUser() user: JwtPayload, @Query() query: ListTransactionsQuery) {
+    return this.transactionsService.forecast(user.sub, query);
+  }
+
   @Get('summary')
   summary(@CurrentUser() user: JwtPayload, @Query() query: MonthQuery) {
     return this.transactionsService.summary(user.sub, query.month);

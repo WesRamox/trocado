@@ -2,14 +2,14 @@
 // Valores em reais; percentuais como fração (0.25 = 25%).
 
 import { CATEGORY_COLORS } from "./palette";
-import type { Card, Category, Summary, Transaction } from "./types";
+import type { Card, Category, Entry, Summary } from "./types";
 
 // Regra 50/30/20: guardar ao menos 20% da renda e comprometer no máximo 50% com o essencial
 export const SAVINGS_GOAL = 0.2;
 export const FIXED_LIMIT = 0.5;
 
-const outflows = (transactions: Transaction[]) => transactions.filter((t) => t.type === "OUTFLOW");
-const sum = (transactions: Transaction[]) => transactions.reduce((total, t) => total + t.amount, 0);
+const outflows = (transactions: Entry[]) => transactions.filter((t) => t.type === "OUTFLOW");
+const sum = (transactions: Entry[]) => transactions.reduce((total, t) => total + t.amount, 0);
 
 // Variação relativa; null quando não há base de comparação
 export const change = (current: number, previous: number) =>
@@ -28,23 +28,24 @@ export function monthDays(month: string, today: string) {
 }
 
 // Gastos que se repetem ou já estavam assumidos: recorrências e parcelas
-export const isFixed = (t: Transaction) => t.recurrenceId !== null || t.installmentGroupId !== null;
+export const isFixed = (t: Entry) => t.recurrenceId !== null || t.installmentGroupId !== null;
 
-export function spendingPace(transactions: Transaction[], month: string, today: string) {
+// A média usa só o que já saiu; a projeção soma também as recorrências previstas até o fim do mês
+export function spendingPace(transactions: Entry[], month: string, today: string, forecast: Entry[] = []) {
   const days = monthDays(month, today);
   const spent = outflows(transactions);
   const total = sum(spent);
   const variable = sum(spent.filter((t) => !isFixed(t)));
   const dailyAverage = days.elapsed > 0 ? total / days.elapsed : 0;
-  // Projeção: o que já saiu + gastos variáveis no ritmo atual pelos dias que faltam
+  // Projeção: o que já saiu + gastos variáveis no ritmo atual pelos dias que faltam + contas previstas
   const projection =
     days.isCurrent && days.elapsed > 0
-      ? total + (variable / days.elapsed) * (days.total - days.elapsed)
+      ? total + (variable / days.elapsed) * (days.total - days.elapsed) + sum(outflows(forecast))
       : null;
   return { dailyAverage, projection };
 }
 
-export function fixedCommitment(transactions: Transaction[], inflow: number) {
+export function fixedCommitment(transactions: Entry[], inflow: number) {
   const fixed = sum(outflows(transactions).filter(isFixed));
   return { fixed, share: inflow > 0 ? fixed / inflow : null };
 }
@@ -73,12 +74,12 @@ export interface CategoryRow extends Slice {
 
 // Gastos por categoria: as maiores e o resto somado em "Outras" (máximo de 6 fatias)
 export function spendingByCategory(
-  transactions: Transaction[],
-  previousTransactions: Transaction[],
+  transactions: Entry[],
+  previousTransactions: Entry[],
   categories: Category[],
   maxSlices = 6,
 ): CategoryRow[] {
-  const byCategory = (list: Transaction[]) => {
+  const byCategory = (list: Entry[]) => {
     const totals = new Map<number | null | typeof REMAINDER, number>();
     for (const t of outflows(list)) {
       const key = t.invoiceRemainder ? REMAINDER : t.categoryId;
@@ -129,7 +130,7 @@ export function spendingByCategory(
 }
 
 // Como as saídas foram pagas: crédito, débito ou sem cartão (dinheiro, Pix, boleto)
-export function spendingByPaymentMethod(transactions: Transaction[], cards: Card[]): Slice[] {
+export function spendingByPaymentMethod(transactions: Entry[], cards: Card[]): Slice[] {
   const cardType = new Map(cards.map((card) => [card.id, card.type]));
   const groups = [
     { key: "credit", label: "Crédito", light: "#2a78d6", dark: "#3987e5", value: 0 },
@@ -145,9 +146,9 @@ export function spendingByPaymentMethod(transactions: Transaction[], cards: Card
 }
 
 // Só compras de verdade: o total informado de uma fatura não é um gasto único
-export const topExpenses = (transactions: Transaction[], limit = 5) =>
-  outflows(transactions)
-    .filter((t) => !t.invoiceRemainder)
+export const topExpenses = <T extends Entry>(transactions: T[], limit = 5): T[] =>
+  transactions
+    .filter((t) => t.type === "OUTFLOW" && !t.invoiceRemainder)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, limit);
 
@@ -166,7 +167,7 @@ export interface BudgetRow {
   status: BudgetStatus;
 }
 
-export function budgetProgress(transactions: Transaction[], categories: Category[]): BudgetRow[] {
+export function budgetProgress(transactions: Entry[], categories: Category[]): BudgetRow[] {
   const spentByCategory = new Map<number, number>();
   for (const t of outflows(transactions)) {
     if (t.categoryId !== null) spentByCategory.set(t.categoryId, (spentByCategory.get(t.categoryId) ?? 0) + t.amount);

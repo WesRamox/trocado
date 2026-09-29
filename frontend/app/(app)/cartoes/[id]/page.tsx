@@ -14,7 +14,16 @@ import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth, today } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, CreditLimit, Invoice, Person, Transaction } from "@/lib/types";
+import type {
+  Card,
+  Category,
+  CreditLimit,
+  Entry,
+  Invoice,
+  Person,
+  ProjectedTransaction,
+  Transaction,
+} from "@/lib/types";
 
 export const metadata: Metadata = { title: "Cartão" };
 
@@ -29,20 +38,29 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
   });
   const isCredit = card.type === "CREDIT";
 
-  const [cards, categories, people, invoice, debitTransactions, creditLimit] = await Promise.all([
+  const [cards, categories, people, invoice, debitTransactions, debitForecast, creditLimit] = await Promise.all([
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
     callBackend<Person[]>("/people"),
     // Crédito: fatura que vence no mês. Débito: compras do mês.
     isCredit ? callBackend<Invoice>(`/cards/${card.id}/invoices/${month}`) : null,
     isCredit ? null : callBackend<Transaction[]>("/transactions", { query: { month, cardId: card.id } }),
+    isCredit
+      ? null
+      : callBackend<ProjectedTransaction[]>("/transactions/forecast", { query: { month, cardId: card.id } }),
     isCredit && card.creditLimit ? callBackend<CreditLimit>(`/cards/${card.id}/limit`) : null,
   ]);
+  const debitEntries: Entry[] = [...(debitTransactions ?? []), ...(debitForecast ?? [])];
   const statement = invoice ?? {
-    total: debitTransactions!.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0),
+    total: signedSum(debitEntries),
+    projectedTotal: signedSum(debitForecast ?? []),
     dueDate: null,
     transactions: debitTransactions!,
   };
+  // Lançamentos e recorrências previstas juntos, pela data
+  const entries: Entry[] = [...statement.transactions, ...(invoice ? invoice.projected : (debitForecast ?? []))].sort(
+    (a, b) => a.date.localeCompare(b.date),
+  );
 
   const remainder = statement.transactions.find((t) => t.invoiceRemainder);
   const status = invoice && invoiceStatus(invoice, today(timezone));
@@ -85,6 +103,12 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
               )}
             </p>
             <p className="tabular mt-1 text-4xl font-semibold tracking-tight">{formatMoney(statement.total)}</p>
+            {statement.projectedTotal !== 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Inclui <span className="tabular">{formatMoney(statement.projectedTotal)}</span> de recorrências
+                previstas
+              </p>
+            )}
             {remainder && (
               <p className="mt-1 text-sm text-muted-foreground">
                 <span className="tabular">{formatMoney(remainder.amount)}</span> sem detalhe
@@ -143,7 +167,7 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
           </div>
 
           <div className="mt-6">
-            {statement.transactions.length === 0 ? (
+            {entries.length === 0 ? (
               <EmptyState
                 icon={ReceiptText}
                 tone="sky"
@@ -151,12 +175,7 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
                 description="Compras lançadas com este cartão aparecem aqui."
               />
             ) : (
-              <TransactionList
-                transactions={statement.transactions}
-                cards={cards}
-                categories={categories}
-                people={people}
-              />
+              <TransactionList transactions={entries} cards={cards} categories={categories} people={people} />
             )}
           </div>
         </section>
@@ -164,6 +183,10 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
     </>
   );
 }
+
+// Saídas somam, entradas (estornos) abatem
+const signedSum = (entries: Entry[]) =>
+  entries.reduce((sum, t) => sum + (t.type === "OUTFLOW" ? t.amount : -t.amount), 0);
 
 // Situação da fatura pelo que falta pagar e pelo vencimento
 function invoiceStatus(invoice: Invoice, todayDate: string) {

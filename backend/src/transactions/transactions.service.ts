@@ -23,10 +23,14 @@ import { CreateTransactionDto } from './dto/create-transaction.dto.js';
 import { ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
 import { SplitTransactionDto } from './dto/split-transaction.dto.js';
+import { forecastFor, type ForecastEntry } from './forecast.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
 import { toTransactionResponse } from './transactions.mapper.js';
 
 const MAX_HISTORY_MONTHS = 24;
+
+// O centavo é só para as somas internas; a resposta tem o valor em reais, como os lançamentos
+const toForecastResponse = ({ amountInCents: _amountInCents, ...entry }: ForecastEntry) => entry;
 
 // Soma de uma fatura: entradas no cartão (estornos) abatem o total
 const signedTotalCents = (items: Pick<Transaction, 'type' | 'amountInCents'>[]) =>
@@ -122,22 +126,56 @@ export class TransactionsService {
       select: { date: true, type: true, amountInCents: true },
     });
 
-    const totals = new Map(months.map((month) => [month, { inflow: 0, outflow: 0 }]));
+    // Recorrências que ainda vão acontecer no período entram como previstas
+    const forecast = forecastFor(await this.recurrencesOf(userId), {
+      start: monthRange(from).start,
+      end: monthRange(to).end,
+      by: 'date',
+    });
+
+    const totals = new Map(
+      months.map((month) => [month, { inflow: 0, outflow: 0, projectedInflow: 0, projectedOutflow: 0 }]),
+    );
     for (const { date, type, amountInCents } of transactions) {
       const total = totals.get(formatDate(date).slice(0, 7))!;
       if (type === TransactionType.INFLOW) total.inflow += amountInCents;
       else total.outflow += amountInCents;
     }
+    for (const { date, type, amountInCents } of forecast) {
+      const total = totals.get(date.slice(0, 7))!;
+      if (type === TransactionType.INFLOW) total.projectedInflow += amountInCents;
+      else total.projectedOutflow += amountInCents;
+    }
 
     return months.map((month) => {
-      const { inflow, outflow } = totals.get(month)!;
+      const { inflow, outflow, projectedInflow, projectedOutflow } = totals.get(month)!;
+      // Os totais já contam o previsto; os campos projected* dizem quanto dele é previsão
       return {
         month,
-        inflow: toReais(inflow),
-        outflow: toReais(outflow),
-        balance: toReais(inflow - outflow),
+        inflow: toReais(inflow + projectedInflow),
+        outflow: toReais(outflow + projectedOutflow),
+        balance: toReais(inflow + projectedInflow - outflow - projectedOutflow),
+        projectedInflow: toReais(projectedInflow),
+        projectedOutflow: toReais(projectedOutflow),
       };
     });
+  }
+
+  // Lançamentos previstos do mês (pela data): recorrências que ainda não viraram lançamento
+  async forecast(userId: number, query: ListTransactionsQuery) {
+    const range = monthRange(query.month ?? (await this.currentMonthOf(userId)));
+    return forecastFor(await this.recurrencesOf(userId), { ...range, by: 'date' })
+      .filter(
+        (entry) =>
+          (!query.type || entry.type === query.type) &&
+          (!query.cardId || entry.cardId === query.cardId) &&
+          (!query.categoryId || entry.categoryId === query.categoryId),
+      )
+      .map(toForecastResponse);
+  }
+
+  private recurrencesOf(userId: number, cardId?: number) {
+    return this.prisma.recurrence.findMany({ where: { userId, cardId }, include: { card: true } });
   }
 
   // Fatura de um cartão de crédito, pelo mês de vencimento
@@ -146,18 +184,28 @@ export class TransactionsService {
     const { start, end } = monthRange(month);
 
     const where = { userId, cardId, invoiceDueDate: { gte: start, lt: end } };
-    const [transactions, payments] = await Promise.all([
+    const [transactions, payments, recurrences] = await Promise.all([
       this.prisma.transaction.findMany({ where, orderBy: [{ date: 'asc' }, { id: 'asc' }] }),
       this.prisma.invoicePayment.findMany({ where, orderBy: [{ date: 'asc' }, { id: 'asc' }] }),
+      this.recurrencesOf(userId, cardId),
     ]);
-    const totalCents = signedTotalCents(transactions);
+    // Recorrências no cartão que ainda vão cair nesta fatura. Com o total informado ("sem detalhe"),
+    // ele já é o valor da fatura: somar a previsão contaria em dobro.
+    const projected = transactions.some((t) => t.invoiceRemainder)
+      ? []
+      : forecastFor(recurrences, { start, end, by: 'invoice' });
+    const projectedCents = signedTotalCents(projected);
+    const totalCents = signedTotalCents(transactions) + projectedCents;
     const paidCents = payments.reduce((sum, p) => sum + p.amountInCents, 0);
 
     return {
       cardId,
       month,
       dueDate: formatDate(transactions[0]?.invoiceDueDate ?? withDay(start, card.dueDay!)),
+      // Inclui o previsto; projectedTotal diz quanto dele é previsão
       total: toReais(totalCents),
+      projectedTotal: toReais(projectedCents),
+      projected: projected.map(toForecastResponse),
       paid: toReais(paidCents),
       // Pago a mais (ex.: compra excluída depois do pagamento) não vira saldo negativo
       remaining: toReais(Math.max(totalCents - paidCents, 0)),

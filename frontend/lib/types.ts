@@ -88,11 +88,26 @@ export interface Borrowed {
   people: BorrowedPerson[];
 }
 
+// Recorrência que ainda vai acontecer: mesmo formato de um lançamento, sem id.
+// Quando o dia chega, vira um lançamento de verdade e sai da previsão.
+export interface ProjectedTransaction extends Omit<Transaction, "id"> {
+  id: null;
+  projected: true;
+}
+
+// Linha de extrato: lançamento feito ou previsto
+export type Entry = Transaction | ProjectedTransaction;
+
+export const isProjected = (entry: Entry): entry is ProjectedTransaction => entry.id === null;
+
 export interface Summary {
   month: string;
+  // Os totais já incluem o previsto; projected* dizem quanto dele é previsão
   inflow: number;
   outflow: number;
   balance: number;
+  projectedInflow: number;
+  projectedOutflow: number;
 }
 
 export interface InvoicePayment {
@@ -105,7 +120,10 @@ export interface Invoice {
   cardId: number;
   month: string;
   dueDate: string;
+  // Inclui as recorrências previstas; projectedTotal diz quanto dele é previsão
   total: number;
+  projectedTotal: number;
+  projected: ProjectedTransaction[];
   paid: number;
   // O que falta pagar (nunca negativo)
   remaining: number;

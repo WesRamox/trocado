@@ -38,7 +38,7 @@ import {
 } from "@/lib/metrics";
 import { cardColor } from "@/lib/palette";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, Invoice, Person, Summary, Transaction } from "@/lib/types";
+import type { Card, Category, Entry, Invoice, Person, ProjectedTransaction, Summary, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Visão geral" };
 
@@ -52,10 +52,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
   // Tudo em paralelo; as faturas só esperam a lista de cartões.
   const cardsRequest = callBackend<Card[]>("/cards");
-  const [history, allTransactions, allPreviousTransactions, cards, categories, people, invoices] = await Promise.all([
+  const [
+    history,
+    allTransactions,
+    allPreviousTransactions,
+    forecast,
+    previousForecast,
+    cards,
+    categories,
+    people,
+    invoices,
+  ] = await Promise.all([
     callBackend<Summary[]>("/transactions/summary/history", { query: { from: historyMonths[0], to: month } }),
     callBackend<Transaction[]>("/transactions", { query: { month } }),
     callBackend<Transaction[]>("/transactions", { query: { month: previousMonth } }),
+    // Recorrências que ainda vão acontecer: entram nos indicadores como previstas
+    callBackend<ProjectedTransaction[]>("/transactions/forecast", { query: { month } }),
+    callBackend<ProjectedTransaction[]>("/transactions/forecast", { query: { month: previousMonth } }),
     cardsRequest,
     callBackend<Category[]>("/categories"),
     callBackend<Person[]>("/people"),
@@ -70,6 +83,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   // Compras de outras pessoas nos seus cartões não entram nos seus indicadores (só na fatura)
   const transactions = allTransactions.filter((t) => t.personId === null);
   const previousTransactions = allPreviousTransactions.filter((t) => t.personId === null);
+  // O mês completo: o que já aconteceu mais o que está previsto
+  const entries: Entry[] = [...transactions, ...forecast];
+  const previousEntries: Entry[] = [...previousTransactions, ...previousForecast];
   const summary = history[HISTORY_MONTHS - 1];
   const previousSummary = history[HISTORY_MONTHS - 2];
   const creditCards = cards.filter((card) => card.type === "CREDIT");
@@ -77,12 +93,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const previousName = monthName(previousMonth);
   const rate = savingsRate(summary);
   const previousRate = savingsRate(previousSummary);
-  const pace = spendingPace(transactions, month, today(timezone));
-  const commitment = fixedCommitment(transactions, summary.inflow);
-  const categoryRows = spendingByCategory(transactions, previousTransactions, categories);
-  const paymentSlices = spendingByPaymentMethod(transactions, cards);
+  const pace = spendingPace(transactions, month, today(timezone), forecast);
+  const commitment = fixedCommitment(entries, summary.inflow);
+  const categoryRows = spendingByCategory(entries, previousEntries, categories);
+  const paymentSlices = spendingByPaymentMethod(entries, cards);
   const biggest = topExpenses(transactions);
-  const budgets = budgetProgress(transactions, categories);
+  const budgets = budgetProgress(entries, categories);
   const spendingChange = change(summary.outflow, previousSummary.outflow);
 
   const newButton = (
@@ -107,7 +123,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
       <BalanceHero summary={summary} />
 
-      {transactions.length === 0 ? (
+      {entries.length === 0 ? (
         <EmptyState
           icon={Coins}
           tone="gold"
@@ -173,7 +189,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                       referenceLabel: `${formatPercent(commitment.share)} das entradas; o ideal é até ${formatPercent(FIXED_LIMIT)}`,
                     }
               }
-              detail="Recorrências e parcelas já assumidas."
+              detail="Recorrências (inclusive as previstas) e parcelas já assumidas."
             />
           </section>
 
