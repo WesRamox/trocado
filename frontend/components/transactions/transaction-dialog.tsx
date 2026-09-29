@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { CurrencyInput } from "@/components/currency-input";
 import { Field, FormError } from "@/components/field";
 import { CardSelect, CategorySelect, PersonSelect, TypeToggle } from "@/components/form-controls";
@@ -17,8 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { callBackend } from "@/lib/call-backend";
 import { optionalId, optionalText, requireAmount, text } from "@/lib/form-data";
-import { today } from "@/lib/format";
-import type { Card, Category, Person, Transaction, TransactionType } from "@/lib/types";
+import { formatDate, formatMoney, today } from "@/lib/format";
+import type { Card, Category, Person, RecurrenceMatch, Transaction, TransactionType } from "@/lib/types";
 import { useFormRequest } from "@/lib/use-request";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +116,42 @@ function TransactionForm({
     { onSuccess: onDone },
   );
 
+  // Antes de criar, confere se o lançamento não repete uma recorrência (que já entra sozinha)
+  const formRef = useRef<HTMLFormElement>(null);
+  const checkedRef = useRef(false);
+  const [matches, setMatches] = useState<RecurrenceMatch[]>([]);
+  const [checking, setChecking] = useState(false);
+
+  const submitChecked = () => {
+    checkedRef.current = true;
+    formRef.current?.requestSubmit();
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (transaction || checkedRef.current) {
+      checkedRef.current = false;
+      onSubmit(event);
+      return;
+    }
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const amount = Number(text(form, "amount"));
+    // Sem valor, o envio normal mostra o erro do campo
+    if (!(amount > 0)) return submitChecked();
+
+    setChecking(true);
+    callBackend<RecurrenceMatch[]>("/transactions/recurrence-matches", {
+      query: { date: text(form, "date"), amount, type: text(form, "type") },
+    })
+      // Se a conferência falhar, não impede o lançamento
+      .catch((): RecurrenceMatch[] => [])
+      .then((found) => {
+        setChecking(false);
+        if (found.length > 0) setMatches(found);
+        else submitChecked();
+      });
+  };
+
   const [type, setType] = useState<TransactionType>(transaction?.type ?? "OUTFLOW");
   const [cardId, setCardId] = useState(transaction?.cardId ? String(transaction.cardId) : "none");
   const selectedCard = cards.find((card) => String(card.id) === cardId);
@@ -123,7 +159,7 @@ function TransactionForm({
   const showPerson = type === "OUTFLOW" && people.length > 0;
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-4">
       <TypeToggle value={type} onChange={setType} />
 
       <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
@@ -193,12 +229,39 @@ function TransactionForm({
         </Field>
       </div>
 
+      {matches.length > 0 && <RepeatWarning match={matches[0]} />}
+
       <FormError message={error} />
       <DialogFooter>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : transaction ? "Salvar alterações" : "Criar lançamento"}
-        </Button>
+        {matches.length > 0 ? (
+          <>
+            <Button type="button" variant="outline" disabled={pending} onClick={onDone}>
+              Não lançar
+            </Button>
+            <Button type="button" disabled={pending} onClick={submitChecked}>
+              {pending ? "Salvando..." : "Lançar mesmo assim"}
+            </Button>
+          </>
+        ) : (
+          <Button type="submit" disabled={pending || checking}>
+            {pending || checking ? "Salvando..." : transaction ? "Salvar alterações" : "Criar lançamento"}
+          </Button>
+        )}
       </DialogFooter>
     </form>
+  );
+}
+
+// O lançamento parece repetir uma recorrência: ela já entra sozinha nos cálculos
+function RepeatWarning({ match }: { match: RecurrenceMatch }) {
+  return (
+    <div role="alert" className="rounded-lg border border-gold/60 bg-gold/15 px-3 py-2.5 text-sm">
+      <p className="font-medium">Isso não é a recorrência “{match.name}”?</p>
+      <p className="mt-0.5 text-muted-foreground">
+        {match.projected ? "Ela já está prevista com" : "Ela já lançou"}{" "}
+        <span className="tabular font-medium text-foreground">{formatMoney(match.amount)}</span> em{" "}
+        {formatDate(match.date)} e entra sozinha nos cálculos. Lançar de novo contaria em dobro.
+      </p>
+    </div>
   );
 }

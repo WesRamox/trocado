@@ -111,4 +111,33 @@ describe('Previsão de recorrências (e2e)', () => {
     const { body } = await http().get('/transactions/forecast?month=2030-03&type=OUTFLOW').expect(200);
     expect(body).toEqual([]);
   });
+
+  describe('aviso de lançamento repetido', () => {
+    const matches = async (query: string) =>
+      (await http().get(`/transactions/recurrence-matches?${query}`).expect(200)).body;
+
+    it('acha a recorrência prevista com o mesmo tipo e valor, perto da data', async () => {
+      expect(await matches('date=2030-03-07&amount=5000&type=INFLOW')).toEqual([
+        { recurrenceId: expect.any(Number), name: 'Salário', date: '2030-03-05', amount: 5000, projected: true },
+      ]);
+    });
+
+    it('não avisa com outro valor, outro tipo ou longe da data', async () => {
+      expect(await matches('date=2030-03-07&amount=4999.99&type=INFLOW')).toEqual([]);
+      expect(await matches('date=2030-03-07&amount=5000&type=OUTFLOW')).toEqual([]);
+      expect(await matches('date=2030-03-15&amount=5000&type=INFLOW')).toEqual([]);
+    });
+
+    it('acha também a ocorrência que a recorrência já lançou', async () => {
+      // Começa no passado: as ocorrências já viraram lançamentos
+      await http()
+        .post('/recurrences')
+        .send({ name: 'Academia', amount: 100, type: 'OUTFLOW', frequency: 'MONTHLY', startDate: '2020-01-10' })
+        .expect(201);
+
+      expect(await matches('date=2020-02-12&amount=100&type=OUTFLOW')).toEqual([
+        { recurrenceId: expect.any(Number), name: 'Academia', date: '2020-02-10', amount: 100, projected: false },
+      ]);
+    });
+  });
 });
