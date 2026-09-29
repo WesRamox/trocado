@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
 import { formatMoney, monthName, parseMonth } from "@/lib/format";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, Transaction, TransactionType } from "@/lib/types";
+import type { Card, Category, Person, Transaction, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Lançamentos" };
@@ -29,22 +29,24 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/lan
   const month = parseMonth(params.mes, timezone);
   const filter = typeof params.tipo === "string" && params.tipo in TYPE_BY_FILTER ? params.tipo : undefined;
 
-  const [transactions, cards, categories] = await Promise.all([
+  const [transactions, cards, categories, people] = await Promise.all([
     callBackend<Transaction[]>("/transactions", {
       query: { month, type: filter && TYPE_BY_FILTER[filter] },
     }),
     callBackend<Card[]>("/cards"),
     callBackend<Category[]>("/categories"),
+    callBackend<Person[]>("/people"),
   ]);
 
-  const total = transactions.reduce(
-    (sum, t) => sum + (t.type === "INFLOW" ? t.amount : -t.amount),
-    0,
-  );
+  // Compras de outras pessoas aparecem na lista, mas não mexem no seu saldo
+  const total = transactions
+    .filter((t) => t.personId === null)
+    .reduce((sum, t) => sum + (t.type === "INFLOW" ? t.amount : -t.amount), 0);
   const newButton = (
     <TransactionDialog
       cards={cards}
       categories={categories}
+      people={people}
       trigger={
         <Button>
           <Plus /> Novo lançamento
@@ -95,7 +97,7 @@ export default async function TransactionsPage({ searchParams }: PageProps<"/lan
               {formatMoney(total)}
             </span>
           </p>
-          <TransactionList transactions={transactions} cards={cards} categories={categories} />
+          <TransactionList transactions={transactions} cards={cards} categories={categories} people={people} />
         </>
       )}
     </>

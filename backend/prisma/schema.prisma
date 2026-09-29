@@ -27,6 +27,7 @@ model User {
   recurrences     Recurrence[]
   categories      Category[]
   invoicePayments InvoicePayment[]
+  people          Person[]
 
   @@map("users")
 }
@@ -63,6 +64,10 @@ model Transaction {
   cardId           Int?            @map("card_id")
   categoryId       Int?            @map("category_id")
   recurrenceId     Int?            @map("recurrence_id")
+  // Compra feita por outra pessoa no seu cartão: não é gasto seu, ela te reembolsa
+  personId         Int?            @map("person_id")
+  // Dia em que a pessoa reembolsou esta compra (ou parcela)
+  reimbursedAt     DateTime?       @map("reimbursed_at") @db.Date
   name             String
   description      String?
   amountInCents    Int             @map("amount_in_cents")
@@ -85,8 +90,10 @@ model Transaction {
   card       Card?       @relation(fields: [cardId], references: [id], onDelete: SetNull)
   category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   recurrence Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  person     Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
+  @@index([personId])
   @@index([cardId, invoiceDueDate])
   @@index([categoryId])
   @@index([recurrenceId])
@@ -114,6 +121,23 @@ model InvoicePayment {
   @@index([cardId, invoiceDueDate])
   @@index([userId])
   @@map("invoice_payments")
+}
+
+// Quem usa seus cartões (pai, mãe, namorada...) e te reembolsa
+model Person {
+  id     Int     @id @default(autoincrement())
+  userId Int     @map("user_id")
+  name   String  @db.VarChar(50)
+  color  String? @db.VarChar(7)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([userId, name])
+  @@map("people")
 }
 
 model Recurrence {

@@ -21,17 +21,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { callBackend } from "@/lib/call-backend";
-import type { Card, Category, Transaction } from "@/lib/types";
+import type { Card, Category, Person, Transaction } from "@/lib/types";
 import { useRequest } from "@/lib/use-request";
 
 export function TransactionActions({
   transaction,
   cards,
   categories,
+  people,
 }: {
   transaction: Transaction;
   cards: Card[];
   categories: Category[];
+  people: Person[];
 }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -78,6 +80,7 @@ export function TransactionActions({
         <TransactionDialog
           cards={cards}
           categories={categories}
+          people={people}
           transaction={transaction}
           open={editing}
           onOpenChange={setEditing}

@@ -38,7 +38,7 @@ import {
 } from "@/lib/metrics";
 import { cardColor } from "@/lib/palette";
 import { getProfile } from "@/lib/profile";
-import type { Card, Category, Invoice, Summary, Transaction } from "@/lib/types";
+import type { Card, Category, Invoice, Person, Summary, Transaction } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Visão geral" };
 
@@ -52,12 +52,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
 
   // Tudo em paralelo; as faturas só esperam a lista de cartões.
   const cardsRequest = callBackend<Card[]>("/cards");
-  const [history, transactions, previousTransactions, cards, categories, invoices] = await Promise.all([
+  const [history, allTransactions, allPreviousTransactions, cards, categories, people, invoices] = await Promise.all([
     callBackend<Summary[]>("/transactions/summary/history", { query: { from: historyMonths[0], to: month } }),
     callBackend<Transaction[]>("/transactions", { query: { month } }),
     callBackend<Transaction[]>("/transactions", { query: { month: previousMonth } }),
     cardsRequest,
     callBackend<Category[]>("/categories"),
+    callBackend<Person[]>("/people"),
     cardsRequest.then((all) =>
       Promise.all(
         all
@@ -66,6 +67,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       ),
     ),
   ]);
+  // Compras de outras pessoas nos seus cartões não entram nos seus indicadores (só na fatura)
+  const transactions = allTransactions.filter((t) => t.personId === null);
+  const previousTransactions = allPreviousTransactions.filter((t) => t.personId === null);
   const summary = history[HISTORY_MONTHS - 1];
   const previousSummary = history[HISTORY_MONTHS - 2];
   const creditCards = cards.filter((card) => card.type === "CREDIT");
@@ -85,6 +89,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
     <TransactionDialog
       cards={cards}
       categories={categories}
+      people={people}
       trigger={
         <Button>
           <Plus /> Novo lançamento
@@ -270,7 +275,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                 Ver todos
               </Link>
             </div>
-            <TransactionList transactions={transactions.slice(0, 5)} cards={cards} categories={categories} />
+            <TransactionList
+              transactions={allTransactions.slice(0, 5)}
+              cards={cards}
+              categories={categories}
+              people={people}
+            />
           </section>
         </div>
       )}

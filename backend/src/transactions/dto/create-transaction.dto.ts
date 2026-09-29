@@ -32,6 +32,11 @@ export class CreateTransactionDto {
   @IsInt()
   categoryId?: number | null;
 
+  // De quem é a compra, quando outra pessoa usou seu cartão; null = sua
+  @IsOptional()
+  @IsInt()
+  personId?: number | null;
+
   // Número de parcelas; cada parcela cai um mês depois da anterior
   @IsOptionalNotNull()
   @IsInt()
