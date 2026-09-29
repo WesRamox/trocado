@@ -12,7 +12,7 @@ O Trocado é um app de controle financeiro pessoal. Você registra despesas e en
 
 - **Lançamentos:** despesas e entradas com categoria, cartão e observação, inclusive compras parceladas (cada parcela cai no mês e na fatura certos).
 - **Recorrências:** aluguel, assinaturas e salário são cadastrados uma vez e viram lançamentos sozinhos na data. Dá para editar, encerrar ou excluir sem mexer no histórico.
-- **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão. Quem não quer lançar cada compra pode informar só o total da fatura: o que já está lançado nela é descontado e a diferença entra como "sem detalhe".
+- **Cartões e faturas:** cada compra no crédito entra na fatura certa, calculada pelos dias de fechamento e vencimento do cartão. Quem não quer lançar cada compra pode informar só o total da fatura: o que já está lançado nela é descontado e a diferença entra como "sem detalhe". Faturas podem ser pagas no todo ou em parte; o limite em uso considera tudo que ainda não foi pago, inclusive as parcelas das próximas faturas, e é liberado conforme os pagamentos.
 - **Categorias** de entrada e de saída, com cores.
 - **Orçamentos:** um limite mensal opcional por categoria de saída. A visão geral mostra quanto de cada um já foi usado, com alerta a partir de 80% e aviso quando estoura.
 - **Visão geral do mês:**

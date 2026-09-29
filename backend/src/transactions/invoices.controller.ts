@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import type { JwtPayload } from '../auth/auth.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
-import { InvoiceParams } from './dto/invoice.params.js';
+import { InvoiceParams, InvoicePaymentParams } from './dto/invoice.params.js';
+import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
 import { SetInvoiceTotalDto } from './dto/set-invoice-total.dto.js';
 import { TransactionsService } from './transactions.service.js';
 
@@ -29,5 +30,17 @@ export class InvoicesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removeTotal(@CurrentUser() user: JwtPayload, @Param() { cardId, month }: InvoiceParams) {
     return this.transactionsService.removeInvoiceRemainder(user.sub, cardId, month);
+  }
+
+  // Pagamento total ou parcial; devolve a fatura atualizada
+  @Post(':month/payments')
+  pay(@CurrentUser() user: JwtPayload, @Param() { cardId, month }: InvoiceParams, @Body() dto: PayInvoiceDto) {
+    return this.transactionsService.payInvoice(user.sub, cardId, month, dto);
+  }
+
+  @Delete(':month/payments/:paymentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removePayment(@CurrentUser() user: JwtPayload, @Param() { cardId, month, paymentId }: InvoicePaymentParams) {
+    return this.transactionsService.removeInvoicePayment(user.sub, cardId, month, paymentId);
   }
 }
