@@ -28,6 +28,7 @@ model User {
   categories      Category[]
   invoicePayments InvoicePayment[]
   people          Person[]
+  loans           Loan[]
 
   @@map("users")
 }
@@ -68,6 +69,8 @@ model Transaction {
   personId         Int?            @map("person_id")
   // Dia em que a pessoa reembolsou esta compra (ou parcela)
   reimbursedAt     DateTime?       @map("reimbursed_at") @db.Date
+  // Parcela de um empréstimo bancário
+  loanId           Int?            @map("loan_id")
   // Parte de uma compra dividida: aponta para a parcela original, de onde o valor saiu
   splitOfId        Int?            @map("split_of_id")
   name             String
@@ -93,12 +96,14 @@ model Transaction {
   category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   recurrence Recurrence?   @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
   person     Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
+  loan       Loan?         @relation(fields: [loanId], references: [id], onDelete: Cascade)
   splitOf    Transaction?  @relation("SplitParts", fields: [splitOfId], references: [id], onDelete: Cascade)
   splitParts Transaction[] @relation("SplitParts")
 
   @@index([userId, date])
   @@index([personId])
   @@index([splitOfId])
+  @@index([loanId])
   @@index([cardId, invoiceDueDate])
   @@index([categoryId])
   @@index([recurrenceId])
@@ -143,6 +148,30 @@ model Person {
 
   @@unique([userId, name])
   @@map("people")
+}
+
+// Empréstimo bancário: as parcelas viram lançamentos (uma por mês, a partir da 1ª)
+model Loan {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  categoryId      Int?     @map("category_id")
+  name            String   @db.VarChar(100)
+  // Quanto você vai pagar no total (parcelas somadas, com juros)
+  totalInCents    Int      @map("total_in_cents")
+  installments    Int
+  firstDueDate    DateTime @map("first_due_date") @db.Date
+  // Quanto caiu na sua conta; opcional, serve para calcular os juros
+  receivedInCents Int?     @map("received_in_cents")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("loans")
 }
 
 model Recurrence {
@@ -193,6 +222,7 @@ model Category {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   recurrences  Recurrence[]
+  loans        Loan[]
 
   @@unique([userId, name, type])
   @@map("categories")

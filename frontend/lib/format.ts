@@ -14,6 +14,10 @@ export const formatMoneyCompact = (value: number) => brlCompact.format(value);
 const percent = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
 export const formatPercent = (value: number) => percent.format(value);
 
+// Taxa de juros ao mês, com duas casas: 0.0292 -> "2,92% a.m."
+const rate = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const formatMonthlyRate = (value: number) => `${rate.format(value)} a.m.`;
+
 // '2026-09-24' -> Date em UTC, para não mudar de dia com o fuso
 const toDate = (date: string) => new Date(`${date}T00:00:00Z`);
 
