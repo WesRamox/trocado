@@ -8,11 +8,13 @@ import { InvoicePaymentDialog } from "@/components/cards/invoice-payment-dialog"
 import { InvoiceTotalDialog } from "@/components/cards/invoice-total-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { MonthNav } from "@/components/month-nav";
+import { Pagination } from "@/components/pagination";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApiError, callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, monthName, parseMonth, shiftMonth, today } from "@/lib/format";
+import { paginate, parsePage } from "@/lib/pagination";
 import { getProfile } from "@/lib/profile";
 import type {
   Card,
@@ -27,10 +29,12 @@ import type {
 
 export const metadata: Metadata = { title: "Cartão" };
 
+const PAGE_SIZE = 20;
+
 export default async function CardPage({ params, searchParams }: PageProps<"/cartoes/[id]">) {
   const { id } = await params;
   const { timezone } = await getProfile();
-  const requestedMonth = (await searchParams).mes;
+  const { mes: requestedMonth, pagina } = await searchParams;
 
   const card = await callBackend<Card>(`/cards/${Number(id)}`).catch((error) => {
     if (error instanceof ApiError && (error.status === 404 || error.status === 400)) notFound();
@@ -67,6 +71,9 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
   const entries: Entry[] = [...statement.transactions, ...(invoice ? invoice.projected : (debitForecast ?? []))].sort(
     (a, b) => a.date.localeCompare(b.date),
   );
+
+  // A fatura vem inteira (o total depende de tudo), mas só uma página da lista vai para a tela
+  const listed = paginate(entries, parsePage(pagina), PAGE_SIZE);
 
   const remainder = statement.transactions.find((t) => t.invoiceRemainder);
   const status = invoice && invoiceStatus(invoice, today(timezone));
@@ -181,7 +188,18 @@ export default async function CardPage({ params, searchParams }: PageProps<"/car
                 description="Compras lançadas com este cartão aparecem aqui."
               />
             ) : (
-              <TransactionList transactions={entries} cards={cards} categories={categories} people={people} />
+              <>
+                <TransactionList transactions={listed.items} cards={cards} categories={categories} people={people} />
+                <Pagination
+                  page={listed.page}
+                  totalPages={listed.totalPages}
+                  totalItems={listed.totalItems}
+                  pageSize={listed.pageSize}
+                  basePath={`/cartoes/${card.id}`}
+                  params={{ mes: month }}
+                  itemLabel={["compra", "compras"]}
+                />
+              </>
             )}
           </div>
         </section>
