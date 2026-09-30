@@ -156,7 +156,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                   ? null
                   : { value: rate, reference: SAVINGS_GOAL, referenceLabel: `Meta: guardar ${formatPercent(SAVINGS_GOAL)} das entradas` }
               }
-              detail={rate === null ? "Sem entradas neste mês." : undefined}
+              detail={rate === null ? "Sem entradas neste mês." : cashLeftover(cashflow, summary, previousName)}
             />
             <StatTile
               label="Gastos do mês"
@@ -327,4 +327,19 @@ function historyInsight(history: Summary[]) {
   const positive = withData.filter((s) => s.balance >= 0).length;
   const verb = saved >= 0 ? "sobraram" : "faltaram";
   return `No período, ${verb} ${formatMoney(Math.abs(saved))}; o saldo ficou positivo em ${positive} de ${withData.length} ${withData.length === 1 ? "mês" : "meses"}.`;
+}
+
+// Ao lado da taxa de poupança (que conta as compras pela data), o que sobra de fato na conta.
+// Os dois se afastam quando a fatura do mês traz as compras do mês anterior.
+function cashLeftover(cashflow: Cashflow, summary: Summary, previousName: string) {
+  const { balance, inflow } = cashflow;
+  const share = inflow > 0 ? ` (${formatPercent(balance / inflow)} do que entra)` : "";
+  const text =
+    balance >= 0
+      ? `Na conta, sobram ${formatMoney(balance)}${share}`
+      : `Na conta, faltam ${formatMoney(-balance)}`;
+  // Caixa bem abaixo: as faturas deste mês são das compras do mês anterior
+  return balance < summary.balance - 0.005
+    ? `${text}, porque este mês você paga as faturas das compras de ${previousName}.`
+    : `${text}.`;
 }
