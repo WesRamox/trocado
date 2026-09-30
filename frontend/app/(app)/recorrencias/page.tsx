@@ -4,19 +4,25 @@ import { Amount } from "@/components/amount";
 import { CategoryIcon } from "@/components/category-icon";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { Pagination } from "@/components/pagination";
 import { RecurrenceActions } from "@/components/recurrences/recurrence-actions";
 import { RecurrenceDialog } from "@/components/recurrences/recurrence-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { callBackend } from "@/lib/call-backend";
 import { formatDate, formatMoney, today } from "@/lib/format";
+import { paginate, parsePage } from "@/lib/pagination";
 import { getProfile } from "@/lib/profile";
 import { describeSchedule, hasEnded } from "@/lib/recurrence";
 import type { Card, Category, Recurrence } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Recorrências" };
 
-export default async function RecurrencesPage() {
+const PAGE_SIZE = 20;
+
+export default async function RecurrencesPage({ searchParams }: PageProps<"/recorrencias">) {
+  // Ativas e encerradas paginam cada uma no seu parâmetro
+  const { pagina, encerradas } = await searchParams;
   const [recurrences, cards, categories] = await Promise.all([
     callBackend<Recurrence[]>("/recurrences"),
     callBackend<Card[]>("/cards"),
@@ -45,6 +51,11 @@ export default async function RecurrencesPage() {
       }
     />
   );
+
+  const activePage = paginate(active, parsePage(pagina), PAGE_SIZE);
+  const endedPage = paginate(ended, parsePage(encerradas), PAGE_SIZE);
+  // Cada paginação mantém a página da outra seção
+  const pageParam = (page: number) => (page > 1 ? String(page) : undefined);
 
   const renderList = (list: Recurrence[], isEnded: boolean) => (
     <ul className="divide-y rounded-xl border bg-card">
@@ -113,7 +124,18 @@ export default async function RecurrencesPage() {
           <section>
             <h2 className="mb-3 font-semibold">Ativas</h2>
             {active.length > 0 ? (
-              renderList(active, false)
+              <>
+                {renderList(activePage.items, false)}
+                <Pagination
+                  page={activePage.page}
+                  totalPages={activePage.totalPages}
+                  totalItems={activePage.totalItems}
+                  pageSize={PAGE_SIZE}
+                  basePath="/recorrencias"
+                  params={{ encerradas: pageParam(endedPage.page) }}
+                  itemLabel={["recorrência ativa", "recorrências ativas"]}
+                />
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma recorrência ativa.</p>
             )}
@@ -121,7 +143,17 @@ export default async function RecurrencesPage() {
           {ended.length > 0 && (
             <section>
               <h2 className="mb-3 font-semibold text-muted-foreground">Encerradas</h2>
-              {renderList(ended, true)}
+              {renderList(endedPage.items, true)}
+              <Pagination
+                page={endedPage.page}
+                totalPages={endedPage.totalPages}
+                totalItems={endedPage.totalItems}
+                pageSize={PAGE_SIZE}
+                basePath="/recorrencias"
+                pageParam="encerradas"
+                params={{ pagina: pageParam(activePage.page) }}
+                itemLabel={["recorrência encerrada", "recorrências encerradas"]}
+              />
             </section>
           )}
         </div>

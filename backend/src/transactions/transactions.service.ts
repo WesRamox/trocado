@@ -15,13 +15,14 @@ import {
   withDay,
 } from '../common/date.js';
 import { formatCents, splitCents, toCents, toReais } from '../common/money.js';
+import { DEFAULT_PAGE_SIZE, pageWindow, toPage } from '../common/pagination.js';
 import { valueOrCurrent } from '../common/patch.js';
 import { CardType, Prisma, TransactionType, type Card, type Transaction } from '../generated/prisma/client.js';
 import { PeopleService } from '../people/people.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
-import { ListTransactionsQuery } from './dto/list-transactions.query.js';
+import { FindTransactionsQuery, ListTransactionsQuery } from './dto/list-transactions.query.js';
 import { PayInvoiceDto } from './dto/pay-invoice.dto.js';
 import { RecurrenceMatchesQuery } from './dto/recurrence-matches.query.js';
 import { SplitTransactionDto } from './dto/split-transaction.dto.js';
@@ -92,20 +93,28 @@ export class TransactionsService {
     return transactions.map(toTransactionResponse);
   }
 
-  async findAll(userId: number, query: ListTransactionsQuery) {
+  async findAll(userId: number, query: FindTransactionsQuery) {
     const { start, end } = monthRange(query.month ?? (await this.currentMonthOf(userId)));
+    const where: Prisma.TransactionWhereInput = {
+      userId,
+      date: { gte: start, lt: end },
+      type: query.type,
+      cardId: query.cardId,
+      categoryId: query.categoryId,
+    };
+    const orderBy: Prisma.TransactionOrderByWithRelationInput[] = [{ date: 'desc' }, { id: 'desc' }];
 
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: start, lt: end },
-        type: query.type,
-        cardId: query.cardId,
-        categoryId: query.categoryId,
-      },
-      orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    });
-    return transactions.map(toTransactionResponse);
+    if (query.page === undefined) {
+      const transactions = await this.prisma.transaction.findMany({ where, orderBy });
+      return transactions.map(toTransactionResponse);
+    }
+
+    const { page, pageSize = DEFAULT_PAGE_SIZE } = query;
+    const [transactions, totalItems] = await this.prisma.$transaction([
+      this.prisma.transaction.findMany({ where, orderBy, ...pageWindow(page, pageSize) }),
+      this.prisma.transaction.count({ where }),
+    ]);
+    return toPage(transactions.map(toTransactionResponse), page, pageSize, totalItems);
   }
 
   // Total de entradas, saídas e saldo do mês (pela data do lançamento)

@@ -15,7 +15,7 @@ import {
 import type { JwtPayload } from '../auth/auth.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { CreateTransactionDto } from './dto/create-transaction.dto.js';
-import { ListTransactionsQuery, MonthQuery, MonthRangeQuery } from './dto/list-transactions.query.js';
+import { FindTransactionsQuery, ListTransactionsQuery, MonthQuery, MonthRangeQuery } from './dto/list-transactions.query.js';
 import { RecurrenceMatchesQuery } from './dto/recurrence-matches.query.js';
 import { SplitTransactionDto } from './dto/split-transaction.dto.js';
 import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
@@ -30,8 +30,9 @@ export class TransactionsController {
     return this.transactionsService.create(user.sub, dto);
   }
 
+  // GET /transactions?month=2026-09&page=2&pageSize=20 -> uma página do mês
   @Get()
-  findAll(@CurrentUser() user: JwtPayload, @Query() query: ListTransactionsQuery) {
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: FindTransactionsQuery) {
     return this.transactionsService.findAll(user.sub, query);
   }
 

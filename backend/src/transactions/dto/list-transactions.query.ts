@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { MAX_PAGE_SIZE } from '../../common/pagination.js';
 import { IsMonth } from '../../common/validators.js';
 import { TransactionType } from '../../generated/prisma/enums.js';
 
@@ -33,4 +34,21 @@ export class ListTransactionsQuery extends MonthQuery {
   @Type(() => Number)
   @IsInt()
   categoryId?: number;
+}
+
+// Com `page`, a lista vem paginada ({ items, page, pageSize, totalItems, totalPages });
+// sem ela, vem o mês inteiro como antes
+export class FindTransactionsQuery extends ListTransactionsQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MAX_PAGE_SIZE)
+  pageSize?: number;
 }
