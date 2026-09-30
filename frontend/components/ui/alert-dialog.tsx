@@ -5,6 +5,7 @@ import { cn } from "cn"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { useResolvedChild } from "@/components/ui/use-resolved-child"
 
 function AlertDialog({
   ...props
@@ -15,8 +16,11 @@ function AlertDialog({
 function AlertDialogTrigger({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
+  const children = useResolvedChild(props.children)
   return (
-    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
+    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props}>
+      {children}
+    </AlertDialogPrimitive.Trigger>
   )
 }
 

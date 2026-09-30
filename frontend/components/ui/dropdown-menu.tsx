@@ -5,6 +5,8 @@ import { cn } from "cn"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { CheckIcon, ChevronRightIcon } from "lucide-react"
 
+import { useResolvedChild } from "@/components/ui/use-resolved-child"
+
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -22,11 +24,11 @@ function DropdownMenuPortal({
 function DropdownMenuTrigger({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+  const children = useResolvedChild(props.children)
   return (
-    <DropdownMenuPrimitive.Trigger
-      data-slot="dropdown-menu-trigger"
-      {...props}
-    />
+    <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props}>
+      {children}
+    </DropdownMenuPrimitive.Trigger>
   )
 }
 
